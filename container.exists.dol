@@ -1,0 +1,32 @@
+// DOL v0.0.1 - Metal Primitives
+// genes/container.exists.dol
+
+gene container.exists {
+  container has identity
+  container has state
+  container has boundaries
+  container has resources
+  container has image
+}
+
+exegesis {
+  The container gene defines the essential properties of a container in
+  the Univrs platform. A container is an isolated execution environment
+  that encapsulates a workload.
+  
+  Identity: Every container has a unique cryptographic identity derived
+  from an Ed25519 keypair. This identity is immutable for the container's
+  lifetime and serves as the basis for all authentication.
+  
+  State: Containers exist in discrete states (created, running, paused,
+  stopped, archived). State transitions are atomic and authenticated.
+  
+  Boundaries: Resource isolation is enforced through Linux namespaces and
+  cgroups. A container cannot escape its boundaries.
+  
+  Resources: CPU, memory, network, and storage allocations are declared
+  and enforced. Resource limits are constraints, not suggestions.
+  
+  Image: The container's filesystem derives from an OCI-compliant image.
+  The image is immutable; runtime changes use copy-on-write layers.
+}
