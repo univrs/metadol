@@ -1,0 +1,41 @@
+// DOL v0.0.1 - Metal Primitives
+// genes/identity.cryptographic.dol
+
+gene identity.cryptographic {
+  identity has keypair
+  identity has signature
+  identity has public_key
+  identity has private_key
+  identity derives from ed25519 keypair
+}
+
+exegesis {
+  The identity.cryptographic gene establishes the foundational cryptographic
+  properties that enable secure, verifiable identity in the Univrs platform.
+  Every entity in the system possesses a cryptographic identity that serves
+  as the root of trust for all operations.
+
+  Keypair: The identity is anchored in an Ed25519 elliptic curve keypair,
+  chosen for its security properties, performance characteristics, and
+  resistance to side-channel attacks. The keypair generation uses
+  cryptographically secure randomness and follows RFC 8032.
+
+  Public Key: The public key component is openly shared and serves as the
+  canonical identifier for the entity. It enables verification of signatures
+  and supports public key infrastructure operations without exposing sensitive
+  material.
+
+  Private Key: The private key is maintained in secure storage and never
+  leaves its protection boundary. All signing operations occur within the
+  security context that controls the private key, ensuring it cannot be
+  extracted or compromised.
+
+  Signature: Digital signatures created with the private key provide
+  cryptographic proof of authenticity and non-repudiation. Any entity with
+  access to the public key can verify that a message was signed by the
+  corresponding private key holder.
+
+  This gene establishes the primitive from which all authentication,
+  authorization, and trust relationships derive. Without cryptographic
+  identity, no secure operations can occur in the Univrs platform.
+}

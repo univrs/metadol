@@ -1,0 +1,24 @@
+trait node.discovery {
+  uses network.core
+
+  node is discovered
+  node is registered
+  node is healthy
+  node is unreachable
+
+  each discovery emits event
+}
+
+exegesis {
+  Node discovery is a fundamental capability in distributed systems that enables
+  dynamic topology management and service coordination. When a new node joins a
+  distributed cluster, it must be discovered by existing nodes through mechanisms
+  like heartbeat protocols, gossip protocols, or centralized registry services.
+  The discovery process involves initial detection, registration with the cluster
+  membership, and ongoing health monitoring to track node availability. A node
+  transitions through states from discovered to registered, maintains a healthy
+  status through periodic liveness checks, and may become unreachable due to
+  network partitions or failures. Each discovery event triggers notifications
+  that allow other system components to react appropriately, such as load
+  balancers updating routing tables or consensus algorithms recalculating quorums.
+}

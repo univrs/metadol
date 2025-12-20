@@ -1,0 +1,41 @@
+// DOL v0.0.1 - Metal Primitives
+// genes/network.core.dol
+
+gene network.core {
+  network has address
+  network has port
+  network has protocol
+  network has encryption
+}
+
+exegesis {
+  The network.core gene defines the essential primitives for network
+  communication in the Univrs platform. Network connectivity is not assumed
+  to be safe; every aspect of network interaction must be explicit,
+  authenticated, and encrypted by default.
+
+  Address: Network addresses identify endpoints in the topology. These can
+  be IPv4, IPv6, or overlay network addresses. Address assignment follows
+  deterministic rules and is cryptographically bound to entity identity,
+  preventing address spoofing and ensuring routability.
+
+  Port: Network ports define service endpoints within an address space.
+  Port allocation is managed and tracked; no service can bind to a port
+  without explicit declaration. This prevents port conflicts and enables
+  network policy enforcement at the infrastructure level.
+
+  Protocol: Communication protocols (TCP, UDP, QUIC, etc.) define the
+  semantics of data exchange. Protocol selection must be explicit and
+  appropriate for the workload. The platform enforces protocol conformance
+  and rejects malformed traffic at the boundary.
+
+  Encryption: All network traffic is encrypted by default using TLS 1.3 or
+  equivalent standards. Encryption keys derive from cryptographic identities,
+  establishing authenticated encryption channels. Plaintext network traffic
+  is prohibited except in explicitly designated development contexts.
+
+  These primitives form the foundation for all inter-service communication,
+  load balancing, service discovery, and network policy enforcement. Without
+  these core network properties, distributed systems cannot achieve the
+  security and reliability guarantees required by the Univrs platform.
+}

@@ -1,0 +1,32 @@
+// DOL v0.0.1 - Evolution Example
+// evolutions/identity.cryptographic.v0.0.2.dol
+
+evolves identity.cryptographic @ 0.0.2 > 0.0.1 {
+  adds identity has rotation
+  adds identity is rotatable
+  deprecates identity is permanent
+  because "security best practices require key rotation capabilities"
+}
+
+exegesis {
+  Version 0.0.2 of cryptographic identity adds key rotation support
+  to align with security best practices and compliance requirements.
+
+  Key Rotation: Identities can now rotate their underlying keypair
+  while maintaining identity continuity. The rotation event is signed
+  by both the old and new keys, creating a verifiable chain of custody.
+
+  Rotatable State: An identity in the rotatable state can accept
+  rotation requests. Non-rotatable identities (e.g., root CAs) remain
+  immutable to preserve trust anchors.
+
+  Deprecation Notice: The "permanent" state is deprecated in favor of
+  explicit rotation policies. Existing permanent identities continue
+  to function but should migrate to "rotatable" with a never-rotate
+  policy for equivalent behavior.
+
+  Migration Path: Upgrade existing identities by:
+  1. Add rotation capability to identity store
+  2. Mark identities as rotatable with appropriate policies
+  3. Remove "permanent" state references in application code
+}

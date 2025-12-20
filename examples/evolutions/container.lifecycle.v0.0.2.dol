@@ -1,0 +1,27 @@
+// DOL v0.0.1 - Evolution Example
+// evolutions/container.lifecycle.v0.0.2.dol
+
+evolves container.lifecycle @ 0.0.2 > 0.0.1 {
+  adds container is paused
+  adds container is resumed
+  because "workload migration requires state preservation during pause"
+}
+
+exegesis {
+  Version 0.0.2 of the container lifecycle trait adds pause and resume
+  capabilities to support workload migration scenarios.
+
+  Pause State: A paused container suspends execution while preserving
+  all runtime state in memory. This enables live migration between nodes
+  without losing in-flight work.
+
+  Resume State: Resuming a container restores execution from the paused
+  state. The container continues exactly where it left off.
+
+  Migration Use Case: When migrating a container from Node A to Node B,
+  the orchestrator pauses on A, transfers state, then resumes on B.
+  This maintains service availability during infrastructure changes.
+
+  Backward Compatibility: Containers running v0.0.1 behavior can upgrade
+  to v0.0.2 without modification. The new states are additive.
+}

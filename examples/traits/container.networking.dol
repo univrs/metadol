@@ -1,0 +1,25 @@
+trait container.networking {
+  uses container.exists
+  uses network.core
+
+  container has network_namespace
+  container is connected
+  container is isolated
+
+  each connection emits event
+}
+
+exegesis {
+  Container networking provides isolated network environments for containerized
+  applications while enabling controlled communication between containers and
+  external networks. Each container operates within its own network namespace,
+  which provides isolation at the kernel level for network interfaces, routing
+  tables, and firewall rules. Containers can be connected to virtual networks
+  through bridge interfaces, overlay networks, or direct host networking modes,
+  depending on the use case requirements. Network isolation ensures that
+  containers cannot interfere with each other's network traffic by default,
+  while explicit connections enable authorized communication patterns. The
+  networking layer emits events for each connection establishment, allowing
+  monitoring systems to track network topology, diagnose connectivity issues,
+  and enforce security policies across the container infrastructure.
+}

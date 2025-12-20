@@ -1,0 +1,20 @@
+constraint container.integrity {
+  state matches declared
+  identity never changes
+  boundaries never expand
+  resources never exceeds
+}
+
+exegesis {
+  Container integrity constraints ensure that runtime behavior exactly matches
+  the ontological declarations made at creation time. This prevents the common
+  failure mode where containers drift from their intended specifications through
+  mutation, resource creep, or boundary violations. By requiring state to match
+  declared properties, we guarantee that what the system believes about a
+  container remains true throughout its lifecycle. The immutability of identity
+  ensures containers cannot masquerade as other entities, while fixed boundaries
+  prevent unauthorized expansion that could compromise isolation. Resource limits
+  protect the system from container overreach that could destabilize other
+  components. Together, these constraints form an invariant bridge between
+  ontology and runtime, making the abstract concrete and the declared enforceable.
+}

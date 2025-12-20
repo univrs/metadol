@@ -1,0 +1,20 @@
+constraint identity.immutable {
+  keypair never changes
+  public_key never changes
+  signature matches content
+}
+
+exegesis {
+  Cryptographic identity must be immutable because any mutation invalidates the
+  entire trust chain built upon it. When a keypair changes, all signatures
+  created with the previous private key become orphaned, and all verification
+  relationships established with the public key break. This is not merely a
+  technical inconvenience but a fundamental violation of cryptographic assumptions
+  that underpin distributed systems. The immutability of the public key ensures
+  that identity verification remains consistent across time and space, allowing
+  remote parties to trust that the entity they authenticated yesterday is the
+  same entity they interact with today. Requiring signatures to match content
+  completes the integrity guarantee, ensuring that identity cannot be separated
+  from the authentic work product of that identity. These constraints make
+  identity a bedrock upon which other system properties can be safely built.
+}

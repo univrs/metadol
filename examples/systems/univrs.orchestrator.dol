@@ -1,0 +1,20 @@
+system univrs.orchestrator @ 0.1.0 {
+  requires container.lifecycle >= 0.0.1
+  requires node.discovery >= 0.0.1
+
+  all operations is authenticated
+  all events is logged
+  all errors is reported
+}
+
+exegesis {
+  The univrs.orchestrator system serves as the central coordination layer for distributed
+  container management across the univrs platform. It ensures that all operational activities
+  are properly authenticated before execution, preventing unauthorized access to sensitive
+  system resources. Every significant event within the orchestrator is captured and logged,
+  providing a complete audit trail for debugging, compliance, and system analysis. Error
+  handling is comprehensive, with all failures being reported to the appropriate monitoring
+  and alerting systems to enable rapid response. This system depends on both container
+  lifecycle management and node discovery capabilities to maintain a coherent view of the
+  distributed infrastructure and orchestrate workloads effectively across available resources.
+}
