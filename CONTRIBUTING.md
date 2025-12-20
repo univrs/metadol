@@ -22,7 +22,7 @@ This project adheres to a code of conduct. By participating, you are expected to
 
 ### Prerequisites
 
-- Rust toolchain 1.80 or later (install from [rustup.rs](https://rustup.rs))
+- Rust toolchain 1.81 or later (install from [rustup.rs](https://rustup.rs))
 - Git
 - A GitHub account
 
