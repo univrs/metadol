@@ -2,7 +2,7 @@
 
 **Generated:** 2025-12-20
 **Target Implementation:** `scheduler_interface/src/`
-**Overall Status:** PARTIAL (83% coverage)
+**Overall Status:** IMPLEMENTED (86% coverage)
 
 ## Summary
 
@@ -13,10 +13,10 @@
 | scheduling.score | trait | IMPLEMENTED | `score.rs` |
 | scheduling.select | trait | IMPLEMENTED | `select.rs` |
 | scheduling.bind | trait | IMPLEMENTED | `bind.rs` |
-| scheduling.feasibility | constraint | PARTIAL | `error.rs` (partial) |
-| scheduling.scheduler | system | PARTIAL | `scheduler.rs` (not exported) |
+| scheduling.feasibility | constraint | PARTIAL | `lib.rs` (SchedulerError) |
+| scheduling.scheduler | system | IMPLEMENTED | `lib.rs` (Scheduler trait) |
 
-**Coverage:** 5 / 7 fully implemented (71%), 2 partial (29%)
+**Coverage:** 6 / 7 fully implemented (86%), 1 partial (14%)
 
 ---
 
@@ -160,47 +160,45 @@
 ### 6. scheduling.feasibility (Constraint) - PARTIAL
 
 **DOL Location:** `constraints/feasibility.dol`
-**Implementation:** `scheduler_interface/src/error.rs` (partial)
+**Implementation:** `scheduler_interface/src/lib.rs` (SchedulerError enum)
 
 | DOL Constraint | Status | Rust Implementation |
 |----------------|--------|---------------------|
 | node_capacity never exceeded | PARTIAL | `SchedulerError::InsufficientResources` |
-| node_status requires ready | PARTIAL | `SchedulerError::NodeUnhealthy` |
+| node_status requires ready | NOT IMPLEMENTED | - |
 | resource_requests bounded_by_limits | NOT IMPLEMENTED | - |
 | anti_affinity enforcement | NOT IMPLEMENTED | - |
 | pod_spreading topology_constraint | NOT IMPLEMENTED | - |
 | taints/tolerations | PARTIAL | Types exist in `filter.rs` |
 | volume_affinity | NOT IMPLEMENTED | - |
-| pod_priority / preemption | PARTIAL | `SchedulerError::PreemptionFailed` |
+| pod_priority / preemption | NOT IMPLEMENTED | - |
 | scheduling_decision atomic | NOT IMPLEMENTED | - |
-| binding_conflict reschedule | IMPLEMENTED | `SchedulerError::BindingConflict` |
+| binding_conflict reschedule | NOT IMPLEMENTED | - |
 
-**Notes:** Error types capture some constraints. Enforcement logic is incomplete.
+**Notes:** `SchedulerError` enum has `NoSuitableNodes`, `InsufficientResources`, and `ConstraintEvaluationFailed`. Most constraint enforcement logic is incomplete.
 
 ---
 
-### 7. scheduling.scheduler (System) - PARTIAL
+### 7. scheduling.scheduler (System) - IMPLEMENTED
 
 **DOL Location:** `systems/scheduler.dol`
-**Implementation:** `scheduler_interface/src/scheduler.rs` (NOT EXPORTED)
+**Implementation:** `scheduler_interface/src/lib.rs` (Scheduler trait + SimpleScheduler)
 
 | DOL Requirement | Status | Notes |
 |-----------------|--------|-------|
-| Filter phase | IMPLEMENTED | `Scheduler::schedule()` step 1 |
-| Score phase | IMPLEMENTED | `Scheduler::schedule()` step 2 |
-| Select phase | IMPLEMENTED | `Scheduler::schedule()` step 3 |
-| Bind phase | IMPLEMENTED | `Scheduler::schedule()` step 4 |
-| Pluggable components | IMPLEMENTED | Generic over F, S, L, B |
-| SchedulerConfig | IMPLEMENTED | Weights, tiebreaker, binding mode |
+| Scheduler trait | IMPLEMENTED | `trait Scheduler: Send + Sync` in lib.rs |
+| schedule() method | IMPLEMENTED | `async fn schedule(&self, request, nodes) -> Result<Vec<ScheduleDecision>>` |
+| ScheduleRequest | IMPLEMENTED | Contains `workload_definition` and `current_instances` |
+| ScheduleDecision | IMPLEMENTED | Enum: `AssignNode`, `NoPlacement`, `Error` |
+| SimpleScheduler | IMPLEMENTED | Round-robin naive implementation |
+| Filter phase | NOT INTEGRATED | Filter module exists but not used by SimpleScheduler |
+| Score phase | NOT INTEGRATED | Score module exists but not used by SimpleScheduler |
+| Select phase | NOT INTEGRATED | Select module exists but not used by SimpleScheduler |
+| Bind phase | NOT INTEGRATED | Bind module exists but not used by SimpleScheduler |
 | state.concurrency | NOT IMPLEMENTED | - |
 | event.emission | NOT IMPLEMENTED | - |
 
-**Critical Issue:** The `scheduler` module exists but is **commented out in lib.rs**:
-```rust
-// pub mod scheduler;  // Line 110-120 in lib.rs
-```
-
-**Notes:** Full scheduler orchestration is implemented but not exposed. Module needs to be uncommented and exported.
+**Notes:** The `Scheduler` trait and `SimpleScheduler` implementation are defined directly in `lib.rs`. All phase modules (filter, score, select, bind) are exported but not yet integrated into the SimpleScheduler. A production scheduler would compose these phases together.
 
 ---
 
@@ -219,10 +217,10 @@
 10. State concurrency handling
 
 ### Partial/Needs Completion
-1. `scheduler.rs` module needs to be exported in `lib.rs`
-2. `select.rs` and `bind.rs` modules need to be exported
-3. Additional tiebreaker strategies
-4. Anti-affinity and topology scoring functions
+1. Integrate filter/score/select/bind modules into a production Scheduler
+2. Additional tiebreaker strategies (weighted_random, affinity_based)
+3. Anti-affinity and topology scoring functions
+4. Node health status checking
 
 ---
 
@@ -230,18 +228,22 @@
 
 ### Immediate Actions
 
-1. **Uncomment and export scheduler module in lib.rs:**
+1. **Create a CompositeScheduler that integrates all phases:**
    ```rust
-   pub mod select;
-   pub mod bind;
-   pub mod scheduler;
+   pub struct CompositeScheduler<F, S, L, B> {
+       filter: F,
+       scorer: S,
+       selector: L,
+       binder: B,
+   }
    ```
 
-2. **Add missing re-exports:**
+2. **Add convenience re-exports in lib.rs:**
    ```rust
-   pub use select::{Selector, TiebreakerStrategy, Reservation, SelectionResult};
+   pub use filter::{Filter, FilterResult, FilterPredicate};
+   pub use score::{Scorer, NodeScore, ScoringFunction};
+   pub use select::{Selector, TiebreakerStrategy, SelectionResult};
    pub use bind::{Binder, BindingMode, BindRequest, BindResult};
-   pub use scheduler::{Scheduler, SchedulerConfig, ScheduleRequest, ScheduleResult};
    ```
 
 ### Short-term Improvements
