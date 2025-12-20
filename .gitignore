@@ -30,4 +30,11 @@ claude-flow
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt
 target/
-target/
+/target/
+Cargo.lock
+
+.idea/
+.vscode/
+*.swp
+
+.DS_Store
