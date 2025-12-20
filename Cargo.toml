@@ -2,7 +2,7 @@
 name = "metadol"
 version = "0.0.1"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.80"
 authors = ["Univrs <hello@univrs.io>"]
 description = "Metal DOL (Design Ontology Language) - A declarative specification language for ontology-first development"
 documentation = "https://docs.rs/metadol"
