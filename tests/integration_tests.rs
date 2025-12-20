@@ -445,8 +445,8 @@ fn test_parse_compact_formatting() {
     let result = parse_file(input);
     // This might fail due to missing whitespace - that's expected behavior
     // The test documents the expected behavior
-    if result.is_ok() {
-        assert_eq!(result.unwrap().name(), "container.exists");
+    if let Ok(decl) = result {
+        assert_eq!(decl.name(), "container.exists");
     }
 }
 
