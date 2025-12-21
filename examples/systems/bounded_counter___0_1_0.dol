@@ -1,10 +1,10 @@
 system bounded_counter @ 0.1.0 {
-  implements counter.state
-  implements counter.countable
-  enforces counter.bounds_valid
+  requires counter.state >= 0.0.1
+  requires counter.countable >= 0.0.1
+  requires counter.bounds_valid >= 0.0.1
 
-  has persistence.strategy
-  has overflow.policy
+  counter has persistence.strategy
+  counter has overflow.policy
 }
 
 exegesis {
@@ -12,9 +12,9 @@ exegesis {
   into a complete, versioned component.
 
   Composition:
-  - implements counter.state: has value, min, max properties
-  - implements counter.countable: can increment, decrement, reset
-  - enforces counter.bounds_valid: guarantees value stays in bounds
+  - requires counter.state: has value, min, max properties
+  - requires counter.countable: can increment, decrement, reset
+  - requires counter.bounds_valid: guarantees value stays in bounds
 
   Additional system-level concerns:
   - persistence.strategy: how state is saved (memory, disk, etc.)

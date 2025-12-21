@@ -1,9 +1,9 @@
 trait counter.countable {
   uses counter.state
-  countable can increment
-  countable can decrement
-  countable can reset
-  operations are atomic
+  countable has increment
+  countable has decrement
+  countable has reset
+  operations is atomic
 }
 
 exegesis {

@@ -14,7 +14,7 @@ Meta DOL (Domain Ontology Language) is a production-ready DSL toolchain that ena
 
 Meta DOL treats ontology as a first-class concern. You define **genes** (atomic units of meaning), **traits** (composable behaviors), **constraints** (invariants that must hold), **systems** (top-level compositions), and **evolutions** (version-tracked changes). Each declaration includes mandatory exegesis—human-readable explanations that bridge the gap between formal specification and domain understanding.
 
-This approach reduces ontological drift, improves code maintainability, and creates a single source of truth for domain semantics. Whether you're building distributed systems, domain-driven applications, or knowledge graphs, Metal DOL provides the foundation for rigorous, validated domain modeling.
+This approach reduces ontological drift, improves code maintainability, and creates a single source of truth for domain semantics. Whether you're building distributed systems, domain-driven applications, or knowledge graphs, Meta DOL provides the foundation for rigorous, validated domain modeling.
 
 ## Quick Start
 
@@ -258,7 +258,7 @@ Each example includes detailed exegesis and demonstrates best practices for onto
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **[Language Specification](docs/specification.md)** - Complete formal specification of Metal DOL
+- **[Language Specification](docs/specification.md)** - Complete formal specification of Meta DOL
 - **[Grammar (EBNF)](docs/grammar.ebnf)** - Formal EBNF grammar definition
 - **[Tutorials](docs/tutorials/)** - Step-by-step guides for common workflows
   - Getting Started with Genes
