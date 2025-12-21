@@ -1,4 +1,4 @@
-# Metal DOL
+# Meta DOL
 
 [![Build Status](https://github.com/univrs/metadol/workflows/CI/badge.svg)](https://github.com/univrs/metadol/actions)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
@@ -10,9 +10,9 @@
 
 ## Overview
 
-Metal DOL (Domain Ontology Language) is a production-ready DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, Metal DOL lets you declare your domain's fundamental units, behaviors, and constraints explicitly. The toolchain then validates, tests, and generates code that provably satisfies your ontological commitments.
+Meta DOL (Domain Ontology Language) is a production-ready DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, Meta DOL lets you declare your domain's fundamental units, behaviors, and constraints explicitly. The toolchain then validates, tests, and generates code that provably satisfies your ontological commitments.
 
-Metal DOL treats ontology as a first-class concern. You define **genes** (atomic units of meaning), **traits** (composable behaviors), **constraints** (invariants that must hold), **systems** (top-level compositions), and **evolutions** (version-tracked changes). Each declaration includes mandatory exegesis—human-readable explanations that bridge the gap between formal specification and domain understanding.
+Meta DOL treats ontology as a first-class concern. You define **genes** (atomic units of meaning), **traits** (composable behaviors), **constraints** (invariants that must hold), **systems** (top-level compositions), and **evolutions** (version-tracked changes). Each declaration includes mandatory exegesis—human-readable explanations that bridge the gap between formal specification and domain understanding.
 
 This approach reduces ontological drift, improves code maintainability, and creates a single source of truth for domain semantics. Whether you're building distributed systems, domain-driven applications, or knowledge graphs, Metal DOL provides the foundation for rigorous, validated domain modeling.
 
@@ -119,7 +119,7 @@ cargo doc --open
 
 ## CLI Tools
 
-Metal DOL provides three command-line tools for working with DOL files:
+Meta DOL provides three command-line tools for working with DOL files:
 
 ### `dol-parse`
 
@@ -150,7 +150,7 @@ dol-test --output tests/ examples/**/*.dol.test
 
 ## Language Overview
 
-Metal DOL provides five core declaration types:
+Meta DOL provides five core declaration types:
 
 ### Genes
 
@@ -276,7 +276,7 @@ Additional resources:
 
 **Current Version**: 0.0.1
 
-Metal DOL is production-ready with a complete toolchain for ontology-first development.
+Meta DOL is production-ready with a complete toolchain for ontology-first development.
 
 ### Roadmap
 
