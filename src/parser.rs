@@ -741,6 +741,24 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // Check for QuasiQuote (double quote: ''expr)
+        if self.current.kind == TokenKind::Quote {
+            self.advance();
+            // Check if the next token is also a quote
+            if self.current.kind == TokenKind::Quote {
+                self.advance();
+                // This is a quasi-quote
+                let bp = prefix_binding_power(&TokenKind::Quote).unwrap();
+                let operand = self.parse_expr(bp)?;
+                return Ok(Expr::QuasiQuote(Box::new(operand)));
+            } else {
+                // Single quote - regular quote
+                let bp = prefix_binding_power(&TokenKind::Quote).unwrap();
+                let operand = self.parse_expr(bp)?;
+                return Ok(Expr::Quote(Box::new(operand)));
+            }
+        }
+
         // Check for other prefix operators
         if let Some(bp) = prefix_binding_power(&self.current.kind) {
             let op = self.current.kind;
@@ -852,23 +870,29 @@ impl<'a> Parser<'a> {
 
     /// Creates a unary expression from operator token.
     fn make_unary_expr(&self, op_token: TokenKind, operand: Expr) -> Result<Expr, ParseError> {
-        let op = match op_token {
-            TokenKind::Minus => UnaryOp::Neg,
-            TokenKind::Bang => UnaryOp::Not,
-            TokenKind::Quote => UnaryOp::Quote,
-            TokenKind::Reflect => UnaryOp::Reflect,
-            _ => {
-                return Err(ParseError::InvalidStatement {
-                    message: format!("invalid unary operator: {:?}", op_token),
-                    span: self.current.span,
-                })
+        match op_token {
+            TokenKind::Minus => Ok(Expr::Unary {
+                op: UnaryOp::Neg,
+                operand: Box::new(operand),
+            }),
+            TokenKind::Bang => Ok(Expr::Unary {
+                op: UnaryOp::Not,
+                operand: Box::new(operand),
+            }),
+            TokenKind::Quote => Ok(Expr::Quote(Box::new(operand))),
+            TokenKind::Reflect => Ok(Expr::Unary {
+                op: UnaryOp::Reflect,
+                operand: Box::new(operand),
+            }),
+            TokenKind::Comma => {
+                // Comma as unquote operator (,expr)
+                Ok(Expr::Unquote(Box::new(operand)))
             }
-        };
-
-        Ok(Expr::Unary {
-            op,
-            operand: Box::new(operand),
-        })
+            _ => Err(ParseError::InvalidStatement {
+                message: format!("invalid unary operator: {:?}", op_token),
+                span: self.current.span,
+            }),
+        }
     }
 
     /// Parses a lambda expression: |params| body

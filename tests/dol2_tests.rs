@@ -508,8 +508,8 @@ fn test_quote_expression() {
 
     // Quote followed by block
     match expr {
-        Expr::Unary { .. } => {}
-        _ => panic!("Expected unary quote expression"),
+        Expr::Quote(_) => {}
+        _ => panic!("Expected quote expression"),
     }
 }
 

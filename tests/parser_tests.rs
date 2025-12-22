@@ -1254,17 +1254,14 @@ fn test_parse_operator_precedence() {
 
 #[test]
 fn test_parse_quote_expression() {
-    use metadol::ast::{Expr, UnaryOp};
+    use metadol::ast::Expr;
 
     let input = "'expr";
     let mut parser = Parser::new(input);
     let expr = parser.parse_expr(0).unwrap();
 
     match expr {
-        Expr::Unary {
-            op: UnaryOp::Quote,
-            operand,
-        } => match *operand {
+        Expr::Quote(operand) => match *operand {
             Expr::Identifier(ref name) => assert_eq!(name, "expr"),
             _ => panic!("Expected identifier"),
         },

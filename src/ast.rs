@@ -762,6 +762,11 @@ pub enum Expr {
     },
     /// Quote expression (AST capture)
     Quote(Box<Expr>),
+    /// Unquote/splice - insert evaluated expr into quote
+    /// Used inside quotes: '(1 + ,x) where x is evaluated
+    Unquote(Box<Expr>),
+    /// Quasi-quote - quote with splicing support
+    QuasiQuote(Box<Expr>),
     /// Eval expression
     Eval(Box<Expr>),
     /// Type reflection
@@ -782,6 +787,197 @@ pub enum Literal {
     String(String),
     /// Boolean literal
     Bool(bool),
+}
+
+/// Runtime representation of quoted code.
+///
+/// This enum represents AST nodes that have been quoted and can be
+/// manipulated at runtime. It mirrors the structure of `Expr` but is
+/// designed for code-as-data scenarios.
+///
+/// # Example
+///
+/// ```rust
+/// use metadol::ast::{QuotedExpr, Literal};
+///
+/// let quoted = QuotedExpr::Literal(Literal::Int(42));
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum QuotedExpr {
+    /// Literal value
+    Literal(Literal),
+    /// Identifier
+    Ident(String),
+    /// Binary operation
+    Binary {
+        /// Binary operator
+        op: BinaryOp,
+        /// Left operand
+        left: Box<QuotedExpr>,
+        /// Right operand
+        right: Box<QuotedExpr>,
+    },
+    /// Unary operation
+    Unary {
+        /// Unary operator
+        op: UnaryOp,
+        /// Operand
+        operand: Box<QuotedExpr>,
+    },
+    /// Function call
+    Call {
+        /// Function being called
+        callee: Box<QuotedExpr>,
+        /// Arguments
+        args: Vec<QuotedExpr>,
+    },
+    /// List of expressions
+    List(Vec<QuotedExpr>),
+    /// Lambda expression
+    Lambda {
+        /// Parameter names
+        params: Vec<String>,
+        /// Lambda body
+        body: Box<QuotedExpr>,
+    },
+    /// If expression
+    If {
+        /// Condition
+        condition: Box<QuotedExpr>,
+        /// Then branch
+        then_branch: Box<QuotedExpr>,
+        /// Optional else branch
+        else_branch: Option<Box<QuotedExpr>>,
+    },
+    /// Nested quote
+    Quote(Box<QuotedExpr>),
+    /// Unquote (splice)
+    Unquote(Box<QuotedExpr>),
+}
+
+impl QuotedExpr {
+    /// Convert an Expr to a QuotedExpr.
+    ///
+    /// This captures the structure of an expression as data,
+    /// allowing it to be manipulated at runtime.
+    ///
+    /// # Arguments
+    ///
+    /// * `expr` - The expression to quote
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use metadol::ast::{Expr, Literal, QuotedExpr};
+    ///
+    /// let expr = Expr::Literal(Literal::Int(42));
+    /// let quoted = QuotedExpr::from_expr(&expr);
+    /// ```
+    pub fn from_expr(expr: &Expr) -> Self {
+        match expr {
+            Expr::Literal(lit) => QuotedExpr::Literal(lit.clone()),
+            Expr::Identifier(name) => QuotedExpr::Ident(name.clone()),
+            Expr::Binary { left, op, right } => QuotedExpr::Binary {
+                op: *op,
+                left: Box::new(QuotedExpr::from_expr(left)),
+                right: Box::new(QuotedExpr::from_expr(right)),
+            },
+            Expr::Unary { op, operand } => QuotedExpr::Unary {
+                op: *op,
+                operand: Box::new(QuotedExpr::from_expr(operand)),
+            },
+            Expr::Call { callee, args } => QuotedExpr::Call {
+                callee: Box::new(QuotedExpr::from_expr(callee)),
+                args: args.iter().map(QuotedExpr::from_expr).collect(),
+            },
+            Expr::Lambda {
+                params,
+                body,
+                return_type: _,
+            } => QuotedExpr::Lambda {
+                params: params.iter().map(|(name, _)| name.clone()).collect(),
+                body: Box::new(QuotedExpr::from_expr(body)),
+            },
+            Expr::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => QuotedExpr::If {
+                condition: Box::new(QuotedExpr::from_expr(condition)),
+                then_branch: Box::new(QuotedExpr::from_expr(then_branch)),
+                else_branch: else_branch
+                    .as_ref()
+                    .map(|e| Box::new(QuotedExpr::from_expr(e))),
+            },
+            Expr::Quote(inner) => QuotedExpr::Quote(Box::new(QuotedExpr::from_expr(inner))),
+            Expr::Unquote(inner) => QuotedExpr::Unquote(Box::new(QuotedExpr::from_expr(inner))),
+            Expr::QuasiQuote(inner) => {
+                // QuasiQuote is treated similar to Quote but allows unquotes
+                QuotedExpr::Quote(Box::new(QuotedExpr::from_expr(inner)))
+            }
+            // For other expression types, convert to identifier (simplified)
+            _ => QuotedExpr::Ident(format!("{:?}", expr)),
+        }
+    }
+
+    /// Convert a QuotedExpr back to an Expr.
+    ///
+    /// This allows quoted code to be evaluated or further processed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use metadol::ast::{QuotedExpr, Literal};
+    ///
+    /// let quoted = QuotedExpr::Literal(Literal::Int(42));
+    /// let expr = quoted.to_expr();
+    /// ```
+    pub fn to_expr(&self) -> Expr {
+        match self {
+            QuotedExpr::Literal(lit) => Expr::Literal(lit.clone()),
+            QuotedExpr::Ident(name) => Expr::Identifier(name.clone()),
+            QuotedExpr::Binary { op, left, right } => Expr::Binary {
+                left: Box::new(left.to_expr()),
+                op: *op,
+                right: Box::new(right.to_expr()),
+            },
+            QuotedExpr::Unary { op, operand } => Expr::Unary {
+                op: *op,
+                operand: Box::new(operand.to_expr()),
+            },
+            QuotedExpr::Call { callee, args } => Expr::Call {
+                callee: Box::new(callee.to_expr()),
+                args: args.iter().map(|a| a.to_expr()).collect(),
+            },
+            QuotedExpr::List(exprs) => {
+                // Convert list to a block with expressions
+                Expr::Block {
+                    statements: vec![],
+                    final_expr: Some(Box::new(Expr::Call {
+                        callee: Box::new(Expr::Identifier("list".to_string())),
+                        args: exprs.iter().map(|e| e.to_expr()).collect(),
+                    })),
+                }
+            }
+            QuotedExpr::Lambda { params, body } => Expr::Lambda {
+                params: params.iter().map(|p| (p.clone(), None)).collect(),
+                return_type: None,
+                body: Box::new(body.to_expr()),
+            },
+            QuotedExpr::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => Expr::If {
+                condition: Box::new(condition.to_expr()),
+                then_branch: Box::new(then_branch.to_expr()),
+                else_branch: else_branch.as_ref().map(|e| Box::new(e.to_expr())),
+            },
+            QuotedExpr::Quote(inner) => Expr::Quote(Box::new(inner.to_expr())),
+            QuotedExpr::Unquote(inner) => Expr::Unquote(Box::new(inner.to_expr())),
+        }
+    }
 }
 
 /// Match arm for pattern matching.

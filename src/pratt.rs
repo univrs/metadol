@@ -109,6 +109,7 @@ pub fn prefix_binding_power(op: &TokenKind) -> Option<u8> {
         TokenKind::Minus => Some(130),   // Unary minus
         TokenKind::Bang => Some(130),    // Logical not / Eval
         TokenKind::Quote => Some(135),   // Quote
+        TokenKind::Comma => Some(135),   // Unquote (splice)
         TokenKind::Reflect => Some(135), // Reflect
         _ => None,
     }

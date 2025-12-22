@@ -449,21 +449,50 @@ impl TypeChecker {
 
             // Quote/Eval/Reflect - return special types
             Expr::Quote(inner) => {
-                let _ = self.infer(inner)?;
+                let inner_type = self.infer(inner)?;
                 Ok(Type::Generic {
                     name: "Quoted".to_string(),
-                    args: vec![],
+                    args: vec![inner_type],
                 })
             }
             Expr::Eval(inner) => {
-                let _ = self.infer(inner)?;
-                Ok(Type::Unknown) // Eval returns dynamic type
+                let inner_type = self.infer(inner)?;
+                match inner_type {
+                    Type::Generic { name, args } if name == "Quoted" && !args.is_empty() => {
+                        // Eval of Quoted<T> returns T
+                        Ok(args.into_iter().next().unwrap())
+                    }
+                    Type::Generic { name, .. } if name == "Quoted" => {
+                        // Quoted without type param - return Unknown
+                        Ok(Type::Unknown)
+                    }
+                    Type::Unknown => Ok(Type::Unknown),
+                    _ => {
+                        self.error(TypeError::new(format!(
+                            "cannot eval non-quoted type: {}",
+                            inner_type
+                        )));
+                        Ok(Type::Error)
+                    }
+                }
             }
             Expr::Reflect(_type_expr) => {
                 // Type reflection returns type metadata
                 Ok(Type::Generic {
                     name: "TypeInfo".to_string(),
                     args: vec![],
+                })
+            }
+            Expr::Unquote(inner) => {
+                // Unquote inside a quote evaluates the inner expression
+                self.infer(inner)
+            }
+            Expr::QuasiQuote(inner) => {
+                // QuasiQuote is like Quote but allows splicing via Unquote
+                let inner_type = self.infer(inner)?;
+                Ok(Type::Generic {
+                    name: "Quoted".to_string(),
+                    args: vec![inner_type],
                 })
             }
         }
@@ -496,10 +525,13 @@ impl TypeChecker {
                     Ok(Type::Bool)
                 }
             }
-            UnaryOp::Quote => Ok(Type::Generic {
-                name: "Quoted".to_string(),
-                args: vec![],
-            }),
+            UnaryOp::Quote => {
+                // The operand was already inferred, pass its type to Quoted
+                Ok(Type::Generic {
+                    name: "Quoted".to_string(),
+                    args: vec![operand_type],
+                })
+            }
             UnaryOp::Reflect => Ok(Type::Generic {
                 name: "TypeInfo".to_string(),
                 args: vec![],
@@ -1185,6 +1217,140 @@ mod tests {
                 assert_eq!(*return_type, Type::Bool);
             }
             _ => panic!("Expected function type"),
+        }
+    }
+
+    #[test]
+    fn test_quote_preserves_inner_type() {
+        let mut checker = TypeChecker::new();
+
+        // Quote of Int64 should return Quoted<Int64>
+        let expr = Expr::Quote(Box::new(int_lit(42)));
+        let ty = checker.infer(&expr).unwrap();
+
+        match ty {
+            Type::Generic { name, args } => {
+                assert_eq!(name, "Quoted");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0], Type::Int64);
+            }
+            _ => panic!("Expected Quoted<Int64>, found {}", ty),
+        }
+    }
+
+    #[test]
+    fn test_quote_bool() {
+        let mut checker = TypeChecker::new();
+
+        // Quote of Bool should return Quoted<Bool>
+        let expr = Expr::Quote(Box::new(bool_lit(true)));
+        let ty = checker.infer(&expr).unwrap();
+
+        match ty {
+            Type::Generic { name, args } => {
+                assert_eq!(name, "Quoted");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0], Type::Bool);
+            }
+            _ => panic!("Expected Quoted<Bool>, found {}", ty),
+        }
+    }
+
+    #[test]
+    fn test_eval_unwraps_quoted_type() {
+        let mut checker = TypeChecker::new();
+
+        // Eval of Quoted<Int64> should return Int64
+        let quoted_expr = Expr::Quote(Box::new(int_lit(42)));
+        let eval_expr = Expr::Eval(Box::new(quoted_expr));
+        let ty = checker.infer(&eval_expr).unwrap();
+
+        assert_eq!(ty, Type::Int64);
+    }
+
+    #[test]
+    fn test_eval_of_non_quoted_type_errors() {
+        let mut checker = TypeChecker::new();
+
+        // Eval of Int64 (non-quoted) should produce error
+        let eval_expr = Expr::Eval(Box::new(int_lit(42)));
+        let ty = checker.infer(&eval_expr).unwrap();
+
+        assert_eq!(ty, Type::Error);
+        assert!(!checker.is_ok());
+        assert!(checker.errors().len() > 0);
+        assert!(checker.errors()[0]
+            .message
+            .contains("cannot eval non-quoted type"));
+    }
+
+    #[test]
+    fn test_unary_quote_preserves_type() {
+        let mut checker = TypeChecker::new();
+
+        // Unary quote operator should also preserve type
+        let expr = Expr::Unary {
+            op: UnaryOp::Quote,
+            operand: Box::new(string_lit("hello")),
+        };
+        let ty = checker.infer(&expr).unwrap();
+
+        match ty {
+            Type::Generic { name, args } => {
+                assert_eq!(name, "Quoted");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0], Type::String);
+            }
+            _ => panic!("Expected Quoted<String>, found {}", ty),
+        }
+    }
+
+    #[test]
+    fn test_quasiquote_preserves_type() {
+        let mut checker = TypeChecker::new();
+
+        // QuasiQuote should work like Quote
+        let expr = Expr::QuasiQuote(Box::new(float_lit(3.14)));
+        let ty = checker.infer(&expr).unwrap();
+
+        match ty {
+            Type::Generic { name, args } => {
+                assert_eq!(name, "Quoted");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0], Type::Float64);
+            }
+            _ => panic!("Expected Quoted<Float64>, found {}", ty),
+        }
+    }
+
+    #[test]
+    fn test_unquote_evaluates_inner_expr() {
+        let mut checker = TypeChecker::new();
+
+        // Unquote should return the type of the inner expression
+        let expr = Expr::Unquote(Box::new(int_lit(42)));
+        let ty = checker.infer(&expr).unwrap();
+
+        assert_eq!(ty, Type::Int64);
+    }
+
+    #[test]
+    fn test_nested_quote_eval() {
+        let mut checker = TypeChecker::new();
+
+        // Quote(Eval(Quote(42))) should be Quoted<Int64>
+        let inner_quote = Expr::Quote(Box::new(int_lit(42)));
+        let eval_expr = Expr::Eval(Box::new(inner_quote));
+        let outer_quote = Expr::Quote(Box::new(eval_expr));
+        let ty = checker.infer(&outer_quote).unwrap();
+
+        match ty {
+            Type::Generic { name, args } => {
+                assert_eq!(name, "Quoted");
+                assert_eq!(args.len(), 1);
+                assert_eq!(args[0], Type::Int64);
+            }
+            _ => panic!("Expected Quoted<Int64>, found {}", ty),
         }
     }
 }

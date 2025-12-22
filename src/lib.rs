@@ -52,6 +52,7 @@
 //! - [`error`]: Error types with source location information
 //! - [`validator`]: Semantic validation rules
 //! - [`typechecker`]: DOL 2.0 type inference and checking
+//! - [`eval`]: Expression evaluation for DOL 2.0
 //! - [`codegen`]: Code generation from DOL declarations
 
 #![doc(html_root_url = "https://docs.rs/metadol/0.0.1")]
@@ -61,6 +62,7 @@
 pub mod ast;
 pub mod codegen;
 pub mod error;
+pub mod eval;
 pub mod lexer;
 pub mod parser;
 pub mod pratt;
@@ -74,6 +76,7 @@ pub mod test_parser;
 // Re-exports for convenience
 pub use ast::{Constraint, Declaration, Evolution, Gene, Span, Statement, System, Trait};
 pub use error::{LexError, ParseError, ValidationError};
+pub use eval::{EvalError, Interpreter, Value};
 pub use lexer::{Lexer, Token, TokenKind};
 pub use parser::Parser;
 pub use typechecker::{Type, TypeChecker, TypeEnv, TypeError};
