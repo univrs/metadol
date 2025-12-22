@@ -66,14 +66,14 @@ Create `my-first.dol`:
 
 ```dol
 gene container.exists @1.0.0 {
-    """
-    A container exists in the system and has a unique identifier.
-    This is the most basic property of any container.
-    """
-
     has identifier: string
     is entity
     is persistent
+}
+
+exegesis {
+    A container exists in the system and has a unique identifier.
+    This is the most basic property of any container.
 }
 ```
 
@@ -93,13 +93,13 @@ gene container.exists @1.0.0 {
 ### Exegesis (Required)
 
 ```dol
-"""
-A container exists in the system and has a unique identifier.
-This is the most basic property of any container.
-"""
+exegesis {
+    A container exists in the system and has a unique identifier.
+    This is the most basic property of any container.
+}
 ```
 
-Every DOL declaration **must** include exegesis (triple-quoted docstring). This is a core philosophy: your ontology must be self-documenting.
+Every DOL declaration **must** include an exegesis block that follows the declaration. This is a core philosophy: your ontology must be self-documenting.
 
 ### Predicates
 

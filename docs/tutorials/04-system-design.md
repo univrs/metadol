@@ -23,10 +23,6 @@ The complete system syntax:
 
 ```dol
 system qualified.identifier @X.Y.Z {
-    """
-    Mandatory exegesis explaining the system architecture.
-    """
-
     uses trait.identifier @version
     uses trait.identifier >=version
     uses trait.identifier >version
@@ -37,6 +33,10 @@ system qualified.identifier @X.Y.Z {
     requires dependency @version
 
     evolves from previous.system @version
+}
+
+exegesis {
+    Mandatory exegesis explaining the system architecture.
 }
 ```
 
@@ -50,11 +50,11 @@ Require an exact version:
 
 ```dol
 system user.management @1.0.0 {
-    """
-    User management system.
-    """
-
     uses user.authentication @1.0.0    // Exactly 1.0.0
+}
+
+exegesis {
+    User management system.
 }
 ```
 
@@ -69,11 +69,11 @@ Require a minimum version (any version >= specified):
 
 ```dol
 system user.management @1.0.0 {
-    """
-    User management system.
-    """
-
     uses user.authentication >=1.0.0   // 1.0.0, 1.1.0, 2.0.0, etc.
+}
+
+exegesis {
+    User management system.
 }
 ```
 
@@ -88,11 +88,11 @@ Require a version strictly greater than specified:
 
 ```dol
 system user.management @2.0.0 {
-    """
-    User management system v2.
-    """
-
     uses user.authentication >1.0.0    // 1.0.1, 1.1.0, 2.0.0, but NOT 1.0.0
+}
+
+exegesis {
+    User management system v2.
 }
 ```
 
@@ -106,11 +106,11 @@ Require a compatible version (same major version):
 
 ```dol
 system user.management @1.0.0 {
-    """
-    User management system.
-    """
-
     uses user.authentication =1.0.0    // 1.0.0, 1.0.1, 1.1.0, but NOT 2.0.0
+}
+
+exegesis {
+    User management system.
 }
 ```
 
@@ -139,26 +139,6 @@ trait container.security @1.0.0 { ... }
 
 ```dol
 system container.orchestration.basic @1.0.0 {
-    """
-    Basic container orchestration system.
-
-    This system provides fundamental container management capabilities:
-    - Lifecycle management (create, start, stop, destroy)
-    - Network configuration and connectivity
-    - Volume mounting and storage management
-    - Basic health monitoring
-    - Security isolation
-
-    This is the minimal viable orchestration system. For production
-    deployments, consider container.orchestration.production.
-
-    Architecture:
-    - Single-host deployment
-    - Local storage only
-    - Basic networking (bridge mode)
-    - Essential monitoring
-    """
-
     // Core capabilities - exact versions for stability
     uses container.lifecycle @1.0.0
     uses container.networking @1.0.0
@@ -186,6 +166,26 @@ system container.orchestration.basic @1.0.0 {
     is distributed
     is resilient
 }
+
+exegesis {
+    Basic container orchestration system.
+
+    This system provides fundamental container management capabilities:
+    - Lifecycle management (create, start, stop, destroy)
+    - Network configuration and connectivity
+    - Volume mounting and storage management
+    - Basic health monitoring
+    - Security isolation
+
+    This is the minimal viable orchestration system. For production
+    deployments, consider container.orchestration.production.
+
+    Architecture:
+    - Single-host deployment
+    - Local storage only
+    - Basic networking (bridge mode)
+    - Essential monitoring
+}
 ```
 
 ### Step 3: Add Advanced Capabilities
@@ -194,32 +194,6 @@ Build a production system:
 
 ```dol
 system container.orchestration.production @2.0.0 {
-    """
-    Production-grade container orchestration platform.
-
-    Extends basic orchestration with:
-    - Multi-host clustering
-    - Advanced scheduling and placement
-    - Service discovery and load balancing
-    - Distributed storage
-    - Advanced monitoring and alerting
-    - High availability and failover
-    - Rolling updates and rollbacks
-
-    Architecture:
-    - Multi-node cluster
-    - Distributed consensus (Raft)
-    - Overlay networking
-    - Distributed storage (Ceph, GlusterFS)
-    - Prometheus + Grafana monitoring
-    - Auto-scaling
-
-    Requirements:
-    - Minimum 3 nodes for HA
-    - 8GB RAM per node minimum
-    - SSD storage recommended
-    """
-
     // Inherit from basic system
     uses container.orchestration.basic @1.0.0
 
@@ -265,6 +239,32 @@ system container.orchestration.production @2.0.0 {
     is scalable
     is self_healing
 }
+
+exegesis {
+    Production-grade container orchestration platform.
+
+    Extends basic orchestration with:
+    - Multi-host clustering
+    - Advanced scheduling and placement
+    - Service discovery and load balancing
+    - Distributed storage
+    - Advanced monitoring and alerting
+    - High availability and failover
+    - Rolling updates and rollbacks
+
+    Architecture:
+    - Multi-node cluster
+    - Distributed consensus (Raft)
+    - Overlay networking
+    - Distributed storage (Ceph, GlusterFS)
+    - Prometheus + Grafana monitoring
+    - Auto-scaling
+
+    Requirements:
+    - Minimum 3 nodes for HA
+    - 8GB RAM per node minimum
+    - SSD storage recommended
+}
 ```
 
 ## Evolution Tracking with `evolves`
@@ -273,19 +273,15 @@ The `evolves from` predicate tracks system evolution:
 
 ```dol
 system user.management @1.0.0 {
-    """
-    Initial user management system.
-    """
-
     uses user.authentication @1.0.0
     uses user.authorization @1.0.0
 }
 
-system user.management @2.0.0 {
-    """
-    Enhanced user management with SSO and MFA.
-    """
+exegesis {
+    Initial user management system.
+}
 
+system user.management @2.0.0 {
     evolves from user.management @1.0.0
 
     uses user.authentication @2.0.0      // Updated
@@ -294,11 +290,11 @@ system user.management @2.0.0 {
     uses user.mfa >=1.0.0                // New
 }
 
-system user.management @3.0.0 {
-    """
-    Enterprise user management with advanced security.
-    """
+exegesis {
+    Enhanced user management with SSO and MFA.
+}
 
+system user.management @3.0.0 {
     evolves from user.management @2.0.0
 
     uses user.authentication @3.0.0
@@ -308,6 +304,10 @@ system user.management @3.0.0 {
     uses user.rbac >=1.0.0               // New
     uses user.audit >=1.0.0              // New
     uses user.compliance >=1.0.0         // New
+}
+
+exegesis {
+    Enterprise user management with advanced security.
 }
 ```
 
@@ -325,51 +325,6 @@ Let's design a complete e-commerce system.
 
 ```dol
 system ecommerce.platform @1.0.0 {
-    """
-    Complete e-commerce platform architecture.
-
-    This system implements a full-featured e-commerce platform with:
-
-    User Management:
-    - User registration and authentication
-    - Profile management
-    - Session handling
-
-    Product Catalog:
-    - Product browsing and search
-    - Inventory management
-    - Category organization
-
-    Shopping Experience:
-    - Shopping cart
-    - Wishlist
-    - Product recommendations
-
-    Order Processing:
-    - Checkout workflow
-    - Payment processing
-    - Order fulfillment
-    - Shipping integration
-
-    Business Intelligence:
-    - Analytics and reporting
-    - Customer insights
-    - Sales forecasting
-
-    Architecture:
-    - Microservices-based
-    - Event-driven
-    - CQRS pattern
-    - Distributed caching
-    - CDN for static assets
-
-    Scalability:
-    - Horizontal scaling
-    - Database sharding
-    - Read replicas
-    - Message queues for async processing
-    """
-
     // User subsystem
     uses user.authentication =2.0.0
     uses user.authorization >=1.0.0
@@ -452,26 +407,57 @@ system ecommerce.platform @1.0.0 {
     is production_grade
     is pci_compliant
 }
+
+exegesis {
+    Complete e-commerce platform architecture.
+
+    This system implements a full-featured e-commerce platform with:
+
+    User Management:
+    - User registration and authentication
+    - Profile management
+    - Session handling
+
+    Product Catalog:
+    - Product browsing and search
+    - Inventory management
+    - Category organization
+
+    Shopping Experience:
+    - Shopping cart
+    - Wishlist
+    - Product recommendations
+
+    Order Processing:
+    - Checkout workflow
+    - Payment processing
+    - Order fulfillment
+    - Shipping integration
+
+    Business Intelligence:
+    - Analytics and reporting
+    - Customer insights
+    - Sales forecasting
+
+    Architecture:
+    - Microservices-based
+    - Event-driven
+    - CQRS pattern
+    - Distributed caching
+    - CDN for static assets
+
+    Scalability:
+    - Horizontal scaling
+    - Database sharding
+    - Read replicas
+    - Message queues for async processing
+}
 ```
 
 ### Version 2.0 with Enhanced Features
 
 ```dol
 system ecommerce.platform @2.0.0 {
-    """
-    Enhanced e-commerce platform with AI and omnichannel support.
-
-    New in v2.0:
-    - AI-powered product recommendations
-    - Visual search
-    - Chatbot customer service
-    - Omnichannel inventory (online + physical stores)
-    - Mobile app support
-    - Social commerce integration
-    - Subscription management
-    - Loyalty programs
-    """
-
     evolves from ecommerce.platform @1.0.0
 
     // All v1.0 dependencies (updated versions)
@@ -519,6 +505,20 @@ system ecommerce.platform @2.0.0 {
     is omnichannel
     is mobile_first
 }
+
+exegesis {
+    Enhanced e-commerce platform with AI and omnichannel support.
+
+    New in v2.0:
+    - AI-powered product recommendations
+    - Visual search
+    - Chatbot customer service
+    - Omnichannel inventory (online + physical stores)
+    - Mobile app support
+    - Social commerce integration
+    - Subscription management
+    - Loyalty programs
+}
 ```
 
 ## Best Practices
@@ -529,7 +529,10 @@ Use exegesis to document architecture decisions:
 
 ```dol
 system payment.gateway @1.0.0 {
-    """
+    // ... payment gateway implementation ...
+}
+
+exegesis {
     Payment gateway system.
 
     Architecture Decision Records:
@@ -545,8 +548,6 @@ system payment.gateway @1.0.0 {
     ADR-003: Circuit Breaker
     All external payment provider calls are protected by
     circuit breakers to prevent cascade failures.
-    """
-    ...
 }
 ```
 
@@ -576,8 +577,6 @@ Organize uses statements logically:
 
 ```dol
 system web.application @1.0.0 {
-    """Web application system."""
-
     // Authentication & Authorization
     uses auth.authentication >=2.0.0
     uses auth.authorization >=1.0.0
@@ -597,6 +596,8 @@ system web.application @1.0.0 {
     uses frontend.spa >=4.0.0
     uses frontend.ssr >2.0.0
 }
+
+exegesis { Web application system. }
 ```
 
 ### 4. Track Evolution Carefully
@@ -605,7 +606,14 @@ Document what changed between versions:
 
 ```dol
 system api.platform @3.0.0 {
-    """
+    evolves from api.platform @2.0.0
+
+    uses auth.oauth2 >=3.0.0              // Was auth.apikey
+    uses ratelimit.token_bucket >=1.0.0   // Was ratelimit.fixed
+    uses response.jsonapi =1.0.0          // Was response.custom
+}
+
+exegesis {
     API platform v3.0.
 
     Breaking changes from v2.0:
@@ -614,13 +622,6 @@ system api.platform @3.0.0 {
     - Response format is now JSON:API (was custom format)
 
     Migration guide: docs/migration/v2-to-v3.md
-    """
-
-    evolves from api.platform @2.0.0
-
-    uses auth.oauth2 >=3.0.0              // Was auth.apikey
-    uses ratelimit.token_bucket >=1.0.0   // Was ratelimit.fixed
-    uses response.jsonapi =1.0.0          // Was response.custom
 }
 ```
 
@@ -630,8 +631,6 @@ Define meaningful system metrics:
 
 ```dol
 system distributed.system @1.0.0 {
-    """Distributed system with SLO tracking."""
-
     quantified by availability_slo       // 99.99% target
     quantified by latency_p99            // <100ms target
     quantified by error_rate             // <0.1% target
@@ -642,6 +641,8 @@ system distributed.system @1.0.0 {
     has latency_target_ms: integer       // 100
     has error_rate_target: float         // 0.001
 }
+
+exegesis { Distributed system with SLO tracking. }
 ```
 
 ## Common Patterns
@@ -652,22 +653,25 @@ Break large systems into subsystems:
 
 ```dol
 system platform.auth @1.0.0 {
-    """Authentication subsystem."""
     uses user.authentication >=1.0.0
     uses session.management >=1.0.0
 }
 
+exegesis { Authentication subsystem. }
+
 system platform.data @1.0.0 {
-    """Data subsystem."""
     uses database.connection >=1.0.0
     uses cache.management >=1.0.0
 }
 
+exegesis { Data subsystem. }
+
 system platform.complete @1.0.0 {
-    """Complete platform."""
     uses platform.auth @1.0.0
     uses platform.data @1.0.0
 }
+
+exegesis { Complete platform. }
 ```
 
 ### The Environment Pattern
@@ -676,19 +680,21 @@ Model different deployment environments:
 
 ```dol
 system app.development @1.0.0 {
-    """Development environment."""
     uses database.sqlite @1.0.0
     uses cache.memory @1.0.0
     uses monitoring.console @1.0.0
 }
 
+exegesis { Development environment. }
+
 system app.production @1.0.0 {
-    """Production environment."""
     evolves from app.development @1.0.0
     uses database.postgresql >=12.0.0
     uses cache.redis >=6.0.0
     uses monitoring.datadog >=1.0.0
 }
+
+exegesis { Production environment. }
 ```
 
 ## Testing Your Systems

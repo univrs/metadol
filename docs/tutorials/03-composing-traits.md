@@ -23,10 +23,6 @@ The complete trait syntax:
 
 ```dol
 trait qualified.identifier @X.Y.Z {
-    """
-    Mandatory exegesis explaining what this trait represents.
-    """
-
     uses gene.identifier @version
     uses other.trait @version
 
@@ -36,6 +32,10 @@ trait qualified.identifier @X.Y.Z {
 
     emits event.name
     quantified by measurement
+}
+
+exegesis {
+    Mandatory exegesis explaining what this trait represents.
 }
 ```
 
@@ -47,10 +47,6 @@ The `uses` statement is how traits compose genes and other traits:
 
 ```dol
 trait container.lifecycle @1.0.0 {
-    """
-    Complete lifecycle management for containers.
-    """
-
     uses container.exists @1.0.0
     uses container.lifecycle.started @1.0.0
     uses container.lifecycle.stopped @1.0.0
@@ -58,6 +54,10 @@ trait container.lifecycle @1.0.0 {
 
     is lifecycle
     is state_machine
+}
+
+exegesis {
+    Complete lifecycle management for containers.
 }
 ```
 
@@ -77,10 +77,6 @@ Declares events that this trait can emit:
 
 ```dol
 trait container.monitored @1.0.0 {
-    """
-    A container that emits monitoring events.
-    """
-
     uses container.exists @1.0.0
 
     emits container.started
@@ -94,6 +90,10 @@ trait container.monitored @1.0.0 {
 
     is observable
     is event_driven
+}
+
+exegesis {
+    A container that emits monitoring events.
 }
 ```
 
@@ -109,10 +109,6 @@ Declares measurements or metrics:
 
 ```dol
 trait container.performance @1.0.0 {
-    """
-    Performance characteristics of a running container.
-    """
-
     uses container.lifecycle.started @1.0.0
 
     quantified by cpu_usage
@@ -125,6 +121,10 @@ trait container.performance @1.0.0 {
 
     is measurable
     is optimizable
+}
+
+exegesis {
+    Performance characteristics of a running container.
 }
 ```
 
@@ -144,38 +144,42 @@ First, we need our atomic genes:
 
 ```dol
 gene container.exists @1.0.0 {
-    """
-    A container exists in the system.
-    """
     has id: string
     has image: string
     is entity
 }
 
+exegesis {
+    A container exists in the system.
+}
+
 gene container.state.created @1.0.0 {
-    """
-    Container has been created but not started.
-    """
     requires container.exists @1.0.0
     has created_at: integer
 }
 
+exegesis {
+    Container has been created but not started.
+}
+
 gene container.state.running @1.0.0 {
-    """
-    Container is actively running.
-    """
     requires container.exists @1.0.0
     has pid: integer
     has started_at: integer
 }
 
+exegesis {
+    Container is actively running.
+}
+
 gene container.state.stopped @1.0.0 {
-    """
-    Container has been stopped.
-    """
     requires container.exists @1.0.0
     has exit_code: integer
     has stopped_at: integer
+}
+
+exegesis {
+    Container has been stopped.
 }
 ```
 
@@ -185,17 +189,6 @@ Now compose these genes into a lifecycle trait:
 
 ```dol
 trait container.lifecycle @1.0.0 {
-    """
-    Complete lifecycle management for containers.
-
-    This trait models the full state machine of container lifecycle:
-    created -> running -> stopped. It includes all state transitions
-    and emits events at each transition point.
-
-    Implementations must maintain exactly one active state at a time
-    and emit events in the correct order.
-    """
-
     uses container.exists @1.0.0
     uses container.state.created @1.0.0
     uses container.state.running @1.0.0
@@ -212,6 +205,17 @@ trait container.lifecycle @1.0.0 {
     is state_machine
     is auditable
 }
+
+exegesis {
+    Complete lifecycle management for containers.
+
+    This trait models the full state machine of container lifecycle:
+    created -> running -> stopped. It includes all state transitions
+    and emits events at each transition point.
+
+    Implementations must maintain exactly one active state at a time
+    and emit events in the correct order.
+}
 ```
 
 ### Step 3: Add Monitoring
@@ -220,10 +224,6 @@ Extend with monitoring capabilities:
 
 ```dol
 trait container.lifecycle.monitored @1.0.0 {
-    """
-    Lifecycle management with health monitoring.
-    """
-
     uses container.lifecycle @1.0.0
 
     emits health.check
@@ -240,6 +240,10 @@ trait container.lifecycle.monitored @1.0.0 {
     is monitored
     is self_healing
 }
+
+exegesis {
+    Lifecycle management with health monitoring.
+}
 ```
 
 ## Example: Building a Complete User Session Trait
@@ -250,41 +254,34 @@ Let's build a realistic user session trait.
 
 ```dol
 gene user.exists @1.0.0 {
-    """A user account exists in the system."""
     has user_id: string
     has username: string
     is entity
 }
 
+exegesis { A user account exists in the system. }
+
 gene user.credentials.verified @1.0.0 {
-    """User credentials have been verified."""
     requires user.exists @1.0.0
     has verified_at: integer
     has verification_method: string
 }
 
+exegesis { User credentials have been verified. }
+
 gene session.token.issued @1.0.0 {
-    """A session token has been issued."""
     has token: string
     has issued_at: integer
     has expires_at: integer
 }
+
+exegesis { A session token has been issued. }
 ```
 
 ### Compose the Trait
 
 ```dol
 trait user.session.authenticated @1.0.0 {
-    """
-    A complete authenticated user session.
-
-    This trait represents an active, authenticated user session with
-    token management, activity tracking, and security monitoring.
-
-    Sessions have a limited lifetime and can be explicitly terminated.
-    All session activity is logged for security auditing.
-    """
-
     // Core composition
     uses user.exists @1.0.0
     uses user.credentials.verified @1.0.0
@@ -324,6 +321,16 @@ trait user.session.authenticated @1.0.0 {
     is revocable
     is renewable
 }
+
+exegesis {
+    A complete authenticated user session.
+
+    This trait represents an active, authenticated user session with
+    token management, activity tracking, and security monitoring.
+
+    Sessions have a limited lifetime and can be explicitly terminated.
+    All session activity is logged for security auditing.
+}
 ```
 
 ## Trait Composition Patterns
@@ -358,25 +365,28 @@ Model cross-cutting concerns as traits:
 
 ```dol
 trait aspect.auditable @1.0.0 {
-    """Audit trail tracking for any entity."""
     emits audit.created
     emits audit.updated
     emits audit.deleted
     has audit_log: list<string>
 }
 
+exegesis { Audit trail tracking for any entity. }
+
 trait aspect.cacheable @1.0.0 {
-    """Caching behavior for any entity."""
     has cache_key: string
     has cache_ttl: integer
     is cacheable
 }
 
+exegesis { Caching behavior for any entity. }
+
 trait aspect.observable @1.0.0 {
-    """Observable pattern for any entity."""
     emits state.changed
     has observers: list<string>
 }
+
+exegesis { Observable pattern for any entity. }
 ```
 
 Then apply aspects to domain traits:
@@ -396,10 +406,6 @@ Model state machines explicitly:
 
 ```dol
 trait order.lifecycle @1.0.0 {
-    """
-    Order processing state machine.
-    """
-
     uses order.state.pending @1.0.0
     uses order.state.processing @1.0.0
     uses order.state.completed @1.0.0
@@ -415,6 +421,10 @@ trait order.lifecycle @1.0.0 {
 
     is state_machine
     is workflow
+}
+
+exegesis {
+    Order processing state machine.
 }
 ```
 
@@ -456,7 +466,16 @@ Document what events mean:
 
 ```dol
 trait payment.processed @1.0.0 {
-    """
+    emits payment.initiated
+    emits payment.validated
+    emits payment.authorized
+    emits payment.captured
+    emits payment.failed
+
+    // ... additional properties ...
+}
+
+exegesis {
     Payment processing with event-driven workflow.
 
     Events:
@@ -465,15 +484,6 @@ trait payment.processed @1.0.0 {
     - payment.authorized: Payment authorized by provider
     - payment.captured: Funds captured
     - payment.failed: Payment failed at any stage
-    """
-
-    emits payment.initiated
-    emits payment.validated
-    emits payment.authorized
-    emits payment.captured
-    emits payment.failed
-
-    ...
 }
 ```
 
@@ -483,14 +493,14 @@ Only quantify what matters:
 
 ```dol
 trait api.endpoint @1.0.0 {
-    """API endpoint with performance tracking."""
-
     quantified by response_time      // Critical
     quantified by error_rate         // Critical
     quantified by throughput         // Critical
     quantified by cpu_usage          // Useful
     // Don't quantify everything - focus on what matters
 }
+
+exegesis { API endpoint with performance tracking. }
 ```
 
 ### 4. Version Trait Dependencies Carefully

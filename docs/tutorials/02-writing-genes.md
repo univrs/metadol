@@ -23,15 +23,15 @@ The complete gene syntax:
 
 ```dol
 gene qualified.identifier @X.Y.Z {
-    """
-    Mandatory exegesis explaining what this gene represents
-    and why it exists in your domain ontology.
-    """
-
     has property: type
     is category
     derives from parent.gene @version
     requires dependency.gene @version
+}
+
+exegesis {
+    Mandatory exegesis explaining what this gene represents
+    and why it exists in your domain ontology.
 }
 ```
 
@@ -78,13 +78,14 @@ Every gene MUST include exegesis. This is not optional.
 
 ```dol
 gene container.lifecycle.started @1.0.0 {
-    """
+    // ... statements ...
+}
+
+exegesis {
     Represents a container that has been started and is currently running.
     A started container has an active process, consumes resources, and can
     receive signals. This state is entered after successful initialization
     and before the container stops or fails.
-    """
-    ...
 }
 ```
 
@@ -92,12 +93,13 @@ gene container.lifecycle.started @1.0.0 {
 
 ```dol
 gene container.lifecycle.started @1.0.0 {
-    """
-    Container is started.
-    """
-    // Too brief, no context
-    ...
+    // ... statements ...
 }
+
+exegesis {
+    Container is started.
+}
+// Too brief, no context
 ```
 
 **Exegesis should answer:**
@@ -116,15 +118,15 @@ Declares typed properties:
 
 ```dol
 gene container.configured @1.0.0 {
-    """
-    A container with runtime configuration settings.
-    """
-
     has image: string
     has memory_limit: integer
     has cpu_shares: integer
     has environment: map<string, string>
     has volumes: list<string>
+}
+
+exegesis {
+    A container with runtime configuration settings.
 }
 ```
 
@@ -139,10 +141,6 @@ Declares categorical membership:
 
 ```dol
 gene user.account @1.0.0 {
-    """
-    A user account in the system.
-    """
-
     has username: string
     has email: string
 
@@ -150,6 +148,10 @@ gene user.account @1.0.0 {
     is persistent
     is auditable
     is versioned
+}
+
+exegesis {
+    A user account in the system.
 }
 ```
 
@@ -166,16 +168,16 @@ Declares inheritance relationships:
 
 ```dol
 gene user.admin @1.0.0 {
-    """
-    An administrative user with elevated privileges.
-    """
-
     derives from user.account @1.0.0
 
     has permissions: set<string>
     has access_level: integer
 
     is privileged
+}
+
+exegesis {
+    An administrative user with elevated privileges.
 }
 ```
 
@@ -192,10 +194,6 @@ Declares dependencies on other genes:
 
 ```dol
 gene container.networked @1.0.0 {
-    """
-    A container with network connectivity.
-    """
-
     requires container.exists @1.0.0
 
     has ip_address: string
@@ -203,6 +201,10 @@ gene container.networked @1.0.0 {
     has hostname: string
 
     is networked
+}
+
+exegesis {
+    A container with network connectivity.
 }
 ```
 
@@ -217,17 +219,6 @@ Let's model a complete user authentication gene:
 
 ```dol
 gene user.authenticated @1.0.0 {
-    """
-    Represents an authenticated user session in the system.
-
-    An authenticated user has verified their identity through credentials
-    and has been granted a session token. This gene is the foundation for
-    all authorization decisions and audit trails.
-
-    Authentication is distinct from authorization - this gene only confirms
-    identity, not permissions.
-    """
-
     // Core identity
     has user_id: string
     has username: string
@@ -250,6 +241,17 @@ gene user.authenticated @1.0.0 {
     is session
     is auditable
     is temporal
+}
+
+exegesis {
+    Represents an authenticated user session in the system.
+
+    An authenticated user has verified their identity through credentials
+    and has been granted a session token. This gene is the foundation for
+    all authorization decisions and audit trails.
+
+    Authentication is distinct from authorization - this gene only confirms
+    identity, not permissions.
 }
 ```
 
@@ -372,9 +374,12 @@ Every domain entity should have an "exists" gene:
 
 ```dol
 gene entity.exists @1.0.0 {
-    """Base existence for any entity"""
     has id: string
     is entity
+}
+
+exegesis {
+    Base existence for any entity.
 }
 ```
 
