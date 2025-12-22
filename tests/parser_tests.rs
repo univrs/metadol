@@ -886,7 +886,7 @@ fn test_parse_if_expression() {
     match expr {
         Expr::If {
             condition,
-            then_branch,
+            then_branch: _,
             else_branch,
         } => {
             match *condition {
@@ -910,7 +910,7 @@ fn test_parse_if_else_expression() {
     match expr {
         Expr::If {
             condition,
-            then_branch,
+            then_branch: _,
             else_branch,
         } => {
             match *condition {
@@ -1068,7 +1068,7 @@ fn test_parse_for_loop() {
     match stmt {
         Stmt::For {
             binding,
-            iterable,
+            iterable: _,
             body,
         } => {
             assert_eq!(binding, "item");
@@ -1087,7 +1087,7 @@ fn test_parse_while_loop() {
     let stmt = parser.parse_stmt().unwrap();
 
     match stmt {
-        Stmt::While { condition, body } => {
+        Stmt::While { condition: _, body } => {
             assert_eq!(body.len(), 1);
         }
         _ => panic!("Expected while statement"),
@@ -1126,7 +1126,7 @@ fn test_parse_let_statement() {
         Stmt::Let {
             name,
             type_ann,
-            value,
+            value: _,
         } => {
             assert_eq!(name, "x");
             assert!(type_ann.is_none());
@@ -1147,7 +1147,7 @@ fn test_parse_let_with_type() {
         Stmt::Let {
             name,
             type_ann,
-            value,
+            value: _,
         } => {
             assert_eq!(name, "x");
             match type_ann {
@@ -1235,7 +1235,7 @@ fn test_parse_operator_precedence() {
 
     match expr {
         Expr::Binary {
-            left,
+            left: _,
             op: BinaryOp::Pipe,
             right,
         } => {
@@ -1346,8 +1346,6 @@ fn test_parse_function_call() {
 
 #[test]
 fn test_parse_member_access() {
-    use metadol::ast::Expr;
-
     let input = "obj.field";
     let mut parser = Parser::new(input);
     let result = parser.parse_expr(0);
@@ -1411,7 +1409,7 @@ fn test_parse_logical_operators() {
     use metadol::ast::{BinaryOp, Expr};
 
     let input = "a && b";
-    let mut parser = Parser::new(&input);
+    let mut parser = Parser::new(input);
     let expr = parser.parse_expr(0).unwrap();
     match expr {
         Expr::Binary {
@@ -1421,7 +1419,7 @@ fn test_parse_logical_operators() {
     }
 
     let input = "a || b";
-    let mut parser = Parser::new(&input);
+    let mut parser = Parser::new(input);
     let expr = parser.parse_expr(0).unwrap();
     match expr {
         Expr::Binary {

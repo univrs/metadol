@@ -298,16 +298,11 @@ fn test_complex_if_else_chain() {
     // Count the nesting depth
     let mut depth = 0;
     let mut current = &expr;
-    loop {
-        match current {
-            Expr::If { else_branch, .. } => {
-                depth += 1;
-                match else_branch {
-                    Some(else_expr) => current = else_expr,
-                    None => break,
-                }
-            }
-            _ => break,
+    while let Expr::If { else_branch, .. } = current {
+        depth += 1;
+        match else_branch {
+            Some(else_expr) => current = else_expr,
+            None => break,
         }
     }
     assert_eq!(depth, 3, "Expected 3 levels of if nesting");
@@ -591,7 +586,7 @@ fn test_nested_blocks() {
         Expr::Block { statements, .. } => {
             // First statement is let
             // Second statement should be expression containing nested block
-            assert!(statements.len() >= 1);
+            assert!(!statements.is_empty());
         }
         _ => panic!("Expected block expression"),
     }
