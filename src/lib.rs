@@ -51,6 +51,7 @@
 //! - [`parser`]: Recursive descent parser producing AST
 //! - [`error`]: Error types with source location information
 //! - [`validator`]: Semantic validation rules
+//! - [`typechecker`]: DOL 2.0 type inference and checking
 
 #![doc(html_root_url = "https://docs.rs/metadol/0.0.1")]
 #![warn(missing_docs)]
@@ -61,6 +62,7 @@ pub mod error;
 pub mod lexer;
 pub mod parser;
 pub mod pratt;
+pub mod typechecker;
 pub mod validator;
 
 // Test file parser for .dol.test files
@@ -72,6 +74,7 @@ pub use ast::{Constraint, Declaration, Evolution, Gene, Span, Statement, System,
 pub use error::{LexError, ParseError, ValidationError};
 pub use lexer::{Lexer, Token, TokenKind};
 pub use parser::Parser;
+pub use typechecker::{Type, TypeChecker, TypeEnv, TypeError};
 pub use validator::{validate, ValidationResult};
 
 /// Parse a DOL source string into an AST.
