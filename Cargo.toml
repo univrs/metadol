@@ -37,6 +37,11 @@ name = "dol-check"
 path = "src/bin/dol-check.rs"
 required-features = ["cli"]
 
+[[bin]]
+name = "dol-codegen"
+path = "src/bin/dol-codegen.rs"
+required-features = ["cli"]
+
 [features]
 default = []
 cli = ["dep:clap", "dep:anyhow", "dep:colored", "dep:serde", "dep:serde_json"]

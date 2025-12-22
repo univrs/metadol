@@ -52,12 +52,14 @@
 //! - [`error`]: Error types with source location information
 //! - [`validator`]: Semantic validation rules
 //! - [`typechecker`]: DOL 2.0 type inference and checking
+//! - [`codegen`]: Code generation from DOL declarations
 
 #![doc(html_root_url = "https://docs.rs/metadol/0.0.1")]
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
 pub mod ast;
+pub mod codegen;
 pub mod error;
 pub mod lexer;
 pub mod parser;
@@ -76,6 +78,9 @@ pub use lexer::{Lexer, Token, TokenKind};
 pub use parser::Parser;
 pub use typechecker::{Type, TypeChecker, TypeEnv, TypeError};
 pub use validator::{validate, ValidationResult};
+
+// Codegen re-exports
+pub use codegen::{Codegen, CodegenOptions, RustCodegen, TypeMapper, Visibility};
 
 /// Parse a DOL source string into an AST.
 ///
