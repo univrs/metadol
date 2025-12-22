@@ -17,6 +17,9 @@
 //!
 //! # CI mode with strict checks
 //! dol-check --strict --ci examples/
+//!
+//! # Enable DOL 2.0 type checking
+//! dol-check --typecheck examples/
 //! ```
 
 use clap::{Parser, ValueEnum};
@@ -24,7 +27,8 @@ use colored::Colorize;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use metadol::{parse_file, validate, Declaration};
+use metadol::validator::{validate_with_options, ValidationOptions};
+use metadol::{parse_file, Declaration};
 
 /// Validate DOL files and check coverage
 #[derive(Parser, Debug)]
@@ -50,6 +54,10 @@ struct Args {
     /// Strict mode: treat warnings as errors
     #[arg(long)]
     strict: bool,
+
+    /// Enable DOL 2.0 type checking
+    #[arg(long)]
+    typecheck: bool,
 
     /// CI mode: exit code only, minimal output
     #[arg(long)]
@@ -235,8 +243,11 @@ fn check_file(
         }
     };
 
-    // Validate
-    let validation = validate(&decl);
+    // Validate with optional type checking
+    let validation_options = ValidationOptions {
+        typecheck: args.typecheck,
+    };
+    let validation = validate_with_options(&decl, &validation_options);
 
     // Check validation errors
     for error in &validation.errors {

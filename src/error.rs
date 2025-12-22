@@ -215,6 +215,19 @@ pub enum ValidationError {
         /// The referenced parent version
         parent: String,
     },
+
+    /// A type error occurred during type checking.
+    #[error("type error at line {}, column {}: {message}", span.line, span.column)]
+    TypeError {
+        /// The error message
+        message: String,
+        /// Expected type (if applicable)
+        expected: Option<String>,
+        /// Actual type (if applicable)
+        actual: Option<String>,
+        /// Location of the error
+        span: Span,
+    },
 }
 
 /// A collection of validation errors and warnings.

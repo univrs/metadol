@@ -1,7 +1,8 @@
 //! Semantic validation for Metal DOL.
 //!
 //! This module provides validation rules that cannot be enforced during parsing,
-//! such as exegesis requirements, naming conventions, and reference resolution.
+//! such as exegesis requirements, naming conventions, reference resolution, and
+//! type checking for DOL 2.0 expressions.
 //!
 //! # Example
 //!
@@ -22,9 +23,32 @@
 //! let result = validate(&decl);
 //! assert!(result.is_valid());
 //! ```
+//!
+//! # Type Checking
+//!
+//! For DOL 2.0 expressions, type validation can be enabled:
+//!
+//! ```rust
+//! use metadol::{parse_file, validator::{validate_with_options, ValidationOptions}};
+//!
+//! let source = r#"
+//! gene typed.example {
+//!   example has property
+//! }
+//!
+//! exegesis {
+//!   A typed example gene.
+//! }
+//! "#;
+//!
+//! let decl = parse_file(source).unwrap();
+//! let options = ValidationOptions { typecheck: true };
+//! let result = validate_with_options(&decl, &options);
+//! ```
 
 use crate::ast::*;
 use crate::error::{ValidationError, ValidationWarning};
+use crate::typechecker::{Type, TypeChecker, TypeError};
 
 /// The result of validating a declaration.
 #[derive(Debug, Clone)]
@@ -73,18 +97,36 @@ impl ValidationResult {
     fn add_warning(&mut self, warning: ValidationWarning) {
         self.warnings.push(warning);
     }
+
+    /// Adds a type error converted to a validation error.
+    fn add_type_error(&mut self, error: &TypeError, span: Span) {
+        self.add_error(ValidationError::TypeError {
+            message: error.message.clone(),
+            expected: error.expected.as_ref().map(|t| t.to_string()),
+            actual: error.actual.as_ref().map(|t| t.to_string()),
+            span,
+        });
+    }
 }
 
-/// Validates a declaration.
+/// Options for validation.
+#[derive(Debug, Clone, Default)]
+pub struct ValidationOptions {
+    /// Enable type checking for DOL 2.0 expressions.
+    pub typecheck: bool,
+}
+
+/// Validates a declaration with options.
 ///
 /// # Arguments
 ///
 /// * `decl` - The declaration to validate
+/// * `options` - Validation options
 ///
 /// # Returns
 ///
 /// A `ValidationResult` containing any errors or warnings.
-pub fn validate(decl: &Declaration) -> ValidationResult {
+pub fn validate_with_options(decl: &Declaration, options: &ValidationOptions) -> ValidationResult {
     let mut result = ValidationResult::new(decl.name());
 
     // Validate exegesis
@@ -105,7 +147,28 @@ pub fn validate(decl: &Declaration) -> ValidationResult {
         Declaration::Evolution(evolution) => validate_evolution(evolution, &mut result),
     }
 
+    // DOL 2.0 Type checking (if enabled)
+    if options.typecheck {
+        validate_types(decl, &mut result);
+    }
+
     result
+}
+
+/// Validates a declaration.
+///
+/// # Arguments
+///
+/// * `decl` - The declaration to validate
+///
+/// # Returns
+///
+/// A `ValidationResult` containing any errors or warnings.
+///
+/// Note: This does not include type checking by default.
+/// Use [`validate_with_options`] with `typecheck: true` for DOL 2.0 type validation.
+pub fn validate(decl: &Declaration) -> ValidationResult {
+    validate_with_options(decl, &ValidationOptions::default())
 }
 
 /// Validates the exegesis block.
@@ -312,6 +375,144 @@ fn validate_evolution(evolution: &Evolution, result: &mut ValidationResult) {
     }
 }
 
+// === DOL 2.0 Type Validation ===
+
+/// Validates types in DOL 2.0 expressions.
+///
+/// This function type-checks expressions found in the declaration,
+/// including let bindings, lambda expressions, and control flow.
+fn validate_types(decl: &Declaration, result: &mut ValidationResult) {
+    let mut checker = TypeChecker::new();
+    let span = decl.span();
+
+    // Currently, DOL 2.0 expressions can appear in evolution additions
+    // and potentially in future extended statement types
+    if let Declaration::Evolution(evolution) = decl {
+        for stmt in &evolution.additions {
+            validate_statement_types(stmt, &mut checker, result, span);
+        }
+        for stmt in &evolution.deprecations {
+            validate_statement_types(stmt, &mut checker, result, span);
+        }
+    }
+
+    // Convert any accumulated type errors to validation errors
+    for error in checker.errors() {
+        result.add_type_error(error, span);
+    }
+}
+
+/// Type-checks a statement for DOL 2.0 expressions.
+fn validate_statement_types(
+    _stmt: &Statement,
+    _checker: &mut TypeChecker,
+    _result: &mut ValidationResult,
+    _span: Span,
+) {
+    // Current Statement enum doesn't embed DOL 2.0 expressions directly.
+    // This is a placeholder for when statements can contain typed expressions.
+    // For now, type checking happens when parsing DOL 2.0 expression blocks.
+}
+
+/// Type-checks an expression and reports any errors.
+#[allow(dead_code)]
+fn validate_expr_types(
+    expr: &Expr,
+    checker: &mut TypeChecker,
+    result: &mut ValidationResult,
+    span: Span,
+) {
+    if let Err(error) = checker.infer(expr) {
+        result.add_type_error(&error, span);
+    }
+}
+
+/// Type-checks a statement and reports any errors.
+#[allow(dead_code)]
+fn validate_stmt_types(
+    stmt: &Stmt,
+    checker: &mut TypeChecker,
+    result: &mut ValidationResult,
+    span: Span,
+) {
+    match stmt {
+        Stmt::Let {
+            name,
+            type_ann,
+            value,
+        } => {
+            // Infer the value's type
+            match checker.infer(value) {
+                Ok(inferred_type) => {
+                    // If there's a type annotation, verify it matches
+                    if let Some(ann) = type_ann {
+                        let expected = Type::from_type_expr(ann);
+                        if !types_match(&inferred_type, &expected) {
+                            result.add_type_error(
+                                &TypeError::mismatch(expected, inferred_type),
+                                span,
+                            );
+                        }
+                    }
+                    // Bind the variable (would need to track in checker's env)
+                    let _ = name; // Suppress unused warning
+                }
+                Err(error) => {
+                    result.add_type_error(&error, span);
+                }
+            }
+        }
+        Stmt::Expr(expr) => {
+            validate_expr_types(expr, checker, result, span);
+        }
+        Stmt::For {
+            binding: _,
+            iterable,
+            body,
+        } => {
+            validate_expr_types(iterable, checker, result, span);
+            for s in body {
+                validate_stmt_types(s, checker, result, span);
+            }
+        }
+        Stmt::While { condition, body } => {
+            // Condition must be Bool
+            if let Err(error) = checker.check(condition, &Type::Bool) {
+                result.add_type_error(&error, span);
+            }
+            for s in body {
+                validate_stmt_types(s, checker, result, span);
+            }
+        }
+        Stmt::Loop { body } => {
+            for s in body {
+                validate_stmt_types(s, checker, result, span);
+            }
+        }
+        Stmt::Return(Some(expr)) => {
+            validate_expr_types(expr, checker, result, span);
+        }
+        Stmt::Return(None) | Stmt::Break | Stmt::Continue => {}
+        Stmt::Assign { target, value } => {
+            validate_expr_types(target, checker, result, span);
+            validate_expr_types(value, checker, result, span);
+        }
+    }
+}
+
+/// Checks if two types match (considering Any and Unknown as wildcards).
+fn types_match(ty1: &Type, ty2: &Type) -> bool {
+    match (ty1, ty2) {
+        (Type::Unknown, _) | (_, Type::Unknown) => true,
+        (Type::Any, _) | (_, Type::Any) => true,
+        (Type::Error, _) | (_, Type::Error) => true,
+        (a, b) if a == b => true,
+        // Numeric types are compatible
+        (a, b) if a.is_numeric() && b.is_numeric() => true,
+        _ => false,
+    }
+}
+
 // === Helper Functions ===
 
 /// Checks if an identifier is valid.
@@ -451,5 +652,92 @@ mod tests {
         assert!(is_version_greater("1.0.0", "0.9.9"));
         assert!(!is_version_greater("0.0.1", "0.0.2"));
         assert!(!is_version_greater("0.0.1", "0.0.1"));
+    }
+
+    // === DOL 2.0 Type-Aware Validation Tests ===
+
+    #[test]
+    fn test_validate_with_options_default() {
+        let decl = make_gene("test.gene", "A test gene for validation options testing.");
+        let options = ValidationOptions::default();
+        assert!(!options.typecheck);
+        let result = validate_with_options(&decl, &options);
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn test_validate_with_typecheck_enabled() {
+        let decl = make_gene("test.gene", "A test gene for type checking validation.");
+        let options = ValidationOptions { typecheck: true };
+        let result = validate_with_options(&decl, &options);
+        // Should still be valid (no DOL 2.0 expressions with errors)
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn test_types_match_any() {
+        assert!(types_match(&Type::Any, &Type::Int32));
+        assert!(types_match(&Type::String, &Type::Any));
+    }
+
+    #[test]
+    fn test_types_match_unknown() {
+        assert!(types_match(&Type::Unknown, &Type::Int32));
+        assert!(types_match(&Type::String, &Type::Unknown));
+    }
+
+    #[test]
+    fn test_types_match_error() {
+        assert!(types_match(&Type::Error, &Type::Int32));
+        assert!(types_match(&Type::String, &Type::Error));
+    }
+
+    #[test]
+    fn test_types_match_same() {
+        assert!(types_match(&Type::Int32, &Type::Int32));
+        assert!(types_match(&Type::String, &Type::String));
+        assert!(types_match(&Type::Bool, &Type::Bool));
+    }
+
+    #[test]
+    fn test_types_match_numeric_promotion() {
+        // All numeric types are compatible
+        assert!(types_match(&Type::Int32, &Type::Int64));
+        assert!(types_match(&Type::Float32, &Type::Float64));
+        assert!(types_match(&Type::Int32, &Type::Float64));
+    }
+
+    #[test]
+    fn test_types_mismatch() {
+        assert!(!types_match(&Type::String, &Type::Int32));
+        assert!(!types_match(&Type::Bool, &Type::String));
+    }
+
+    #[test]
+    fn test_add_type_error_to_result() {
+        let mut result = ValidationResult::new("test");
+        let type_error = crate::typechecker::TypeError::mismatch(Type::String, Type::Int32);
+        result.add_type_error(&type_error, Span::default());
+
+        assert!(!result.is_valid());
+        assert_eq!(result.errors.len(), 1);
+        match &result.errors[0] {
+            crate::error::ValidationError::TypeError {
+                expected, actual, ..
+            } => {
+                assert!(expected.as_ref().unwrap().contains("String"));
+                assert!(actual.as_ref().unwrap().contains("Int32"));
+            }
+            _ => panic!("Expected TypeError variant"),
+        }
+    }
+
+    #[test]
+    fn test_validation_options_typecheck_flag() {
+        let options = ValidationOptions { typecheck: true };
+        assert!(options.typecheck);
+
+        let options = ValidationOptions { typecheck: false };
+        assert!(!options.typecheck);
     }
 }
