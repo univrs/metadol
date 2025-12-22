@@ -663,10 +663,7 @@ fn test_complex_compose_expression() {
     let tokens = tokenize(input);
     assert_eq!(tokens[0], (TokenKind::Identifier, "double".to_string()));
     assert_eq!(tokens[1], (TokenKind::Compose, ">>".to_string()));
-    assert_eq!(
-        tokens[2],
-        (TokenKind::Identifier, "increment".to_string())
-    );
+    assert_eq!(tokens[2], (TokenKind::Identifier, "increment".to_string()));
     assert_eq!(tokens[3], (TokenKind::Compose, ">>".to_string()));
     assert_eq!(tokens[4], (TokenKind::Identifier, "square".to_string()));
 }

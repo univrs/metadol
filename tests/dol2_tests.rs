@@ -145,8 +145,7 @@ fn test_functional_pipeline_complex() {
     // Verify it parses as a pipe expression
     match expr {
         Expr::Binary {
-            op: BinaryOp::Pipe,
-            ..
+            op: BinaryOp::Pipe, ..
         } => {}
         _ => panic!("Expected pipe expression"),
     }
@@ -177,8 +176,7 @@ fn test_mixed_pipe_and_compose() {
     // Verify it parses correctly
     match expr {
         Expr::Binary {
-            op: BinaryOp::Pipe,
-            ..
+            op: BinaryOp::Pipe, ..
         } => {}
         _ => panic!("Expected top-level pipe"),
     }
@@ -254,10 +252,7 @@ fn test_match_with_guards() {
     match expr {
         Expr::Match { arms, .. } => {
             assert!(arms[0].guard.is_some(), "Expected guard on first arm");
-            assert!(
-                arms[1].guard.is_none(),
-                "Expected no guard on wildcard arm"
-            );
+            assert!(arms[1].guard.is_none(), "Expected no guard on wildcard arm");
         }
         _ => panic!("Expected match expression"),
     }
@@ -443,8 +438,7 @@ fn test_lambda_in_pipeline() {
     // Just verify it parses
     match expr {
         Expr::Binary {
-            op: BinaryOp::Pipe,
-            ..
+            op: BinaryOp::Pipe, ..
         } => {}
         _ => panic!("Expected pipe expression"),
     }
@@ -464,11 +458,7 @@ fn test_all_builtin_types() {
     for type_name in types {
         let mut parser = Parser::new(type_name);
         let result = parser.parse_type();
-        assert!(
-            result.is_ok(),
-            "Failed to parse type: {}",
-            type_name
-        );
+        assert!(result.is_ok(), "Failed to parse type: {}", type_name);
     }
 }
 
@@ -734,8 +724,7 @@ fn test_let_with_complex_expression() {
             assert_eq!(name, "result");
             match value {
                 Expr::Binary {
-                    op: BinaryOp::Pipe,
-                    ..
+                    op: BinaryOp::Pipe, ..
                 } => {}
                 _ => panic!("Expected pipe in let value"),
             }
@@ -772,8 +761,7 @@ fn test_return_with_expression() {
     match stmt {
         Stmt::Return(Some(expr)) => match expr {
             Expr::Binary {
-                op: BinaryOp::Pipe,
-                ..
+                op: BinaryOp::Pipe, ..
             } => {}
             _ => panic!("Expected pipe in return"),
         },

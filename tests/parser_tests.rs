@@ -853,8 +853,7 @@ fn test_parse_pipe_expression() {
     // Verify it's a pipe expression
     match expr {
         Expr::Binary {
-            op: BinaryOp::Pipe,
-            ..
+            op: BinaryOp::Pipe, ..
         } => {}
         _ => panic!("Expected pipe expression"),
     }

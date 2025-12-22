@@ -127,7 +127,10 @@ mod tests {
     #[test]
     fn test_pipe_is_left_associative() {
         let (left, right) = infix_binding_power(&TokenKind::Pipe).unwrap();
-        assert!(left > right, "Pipe should be left associative (left > right)");
+        assert!(
+            left > right,
+            "Pipe should be left associative (left > right)"
+        );
     }
 
     #[test]
@@ -139,7 +142,10 @@ mod tests {
     #[test]
     fn test_compose_is_right_associative() {
         let (left, right) = infix_binding_power(&TokenKind::Compose).unwrap();
-        assert!(left < right, "Compose should be right associative (left < right)");
+        assert!(
+            left < right,
+            "Compose should be right associative (left < right)"
+        );
     }
 
     #[test]
