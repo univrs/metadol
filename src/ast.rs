@@ -597,6 +597,313 @@ impl std::fmt::Display for Quantifier {
     }
 }
 
+// === DOL 2.0 Expression Types ===
+
+/// Binary operator for expressions.
+///
+/// Represents operators that take two operands and produce a result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum BinaryOp {
+    /// Addition `+`
+    Add,
+    /// Subtraction `-`
+    Sub,
+    /// Multiplication `*`
+    Mul,
+    /// Division `/`
+    Div,
+    /// Modulo `%`
+    Mod,
+    /// Exponentiation `^`
+    Pow,
+    /// Equality `==`
+    Eq,
+    /// Not equal `!=`
+    Ne,
+    /// Less than `<`
+    Lt,
+    /// Less than or equal `<=`
+    Le,
+    /// Greater than `>`
+    Gt,
+    /// Greater than or equal `>=`
+    Ge,
+    /// Logical and `&`
+    And,
+    /// Logical or `||`
+    Or,
+    /// Pipe `|>`
+    Pipe,
+    /// Compose `>>`
+    Compose,
+    /// Application `@`
+    Apply,
+    /// Bind `:=`
+    Bind,
+    /// Member access `.`
+    Member,
+}
+
+/// Unary operator for expressions.
+///
+/// Represents operators that take a single operand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum UnaryOp {
+    /// Negation `-`
+    Neg,
+    /// Logical not `!`
+    Not,
+    /// Quote/AST capture `'`
+    Quote,
+    /// Type reflection `?`
+    Reflect,
+}
+
+/// Type expression for DOL 2.0.
+///
+/// Represents type annotations and type expressions in function signatures
+/// and variable declarations.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum TypeExpr {
+    /// Named type (e.g., `Int32`, `String`)
+    Named(String),
+    /// Generic type with arguments (e.g., `List<T>`, `Map<K, V>`)
+    Generic {
+        /// The type name
+        name: String,
+        /// Type arguments
+        args: Vec<TypeExpr>,
+    },
+    /// Function type (e.g., `(Int32, String) -> Bool`)
+    Function {
+        /// Parameter types
+        params: Vec<TypeExpr>,
+        /// Return type
+        return_type: Box<TypeExpr>,
+    },
+    /// Tuple type (e.g., `(Int32, String, Bool)`)
+    Tuple(Vec<TypeExpr>),
+}
+
+/// Expression node for DOL 2.0.
+///
+/// Represents computational expressions that can be evaluated to produce values.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Expr {
+    /// Literal value
+    Literal(Literal),
+    /// Variable or identifier reference
+    Identifier(String),
+    /// Binary operation
+    Binary {
+        /// Left operand
+        left: Box<Expr>,
+        /// Operator
+        op: BinaryOp,
+        /// Right operand
+        right: Box<Expr>,
+    },
+    /// Unary operation
+    Unary {
+        /// Operator
+        op: UnaryOp,
+        /// Operand
+        operand: Box<Expr>,
+    },
+    /// Function call
+    Call {
+        /// Function being called
+        callee: Box<Expr>,
+        /// Arguments
+        args: Vec<Expr>,
+    },
+    /// Member access (field or method)
+    Member {
+        /// Object being accessed
+        object: Box<Expr>,
+        /// Field name
+        field: String,
+    },
+    /// Lambda expression
+    Lambda {
+        /// Parameters with optional type annotations
+        params: Vec<(String, Option<TypeExpr>)>,
+        /// Optional return type
+        return_type: Option<TypeExpr>,
+        /// Lambda body
+        body: Box<Expr>,
+    },
+    /// If expression
+    If {
+        /// Condition
+        condition: Box<Expr>,
+        /// Then branch
+        then_branch: Box<Expr>,
+        /// Optional else branch
+        else_branch: Option<Box<Expr>>,
+    },
+    /// Pattern matching
+    Match {
+        /// Value being matched
+        scrutinee: Box<Expr>,
+        /// Match arms
+        arms: Vec<MatchArm>,
+    },
+    /// Block expression
+    Block {
+        /// Statements in the block
+        statements: Vec<Stmt>,
+        /// Optional final expression (return value)
+        final_expr: Option<Box<Expr>>,
+    },
+    /// Quote expression (AST capture)
+    Quote(Box<Expr>),
+    /// Eval expression
+    Eval(Box<Expr>),
+    /// Type reflection
+    Reflect(Box<TypeExpr>),
+}
+
+/// Literal value.
+///
+/// Represents constant values in expressions.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Literal {
+    /// Integer literal
+    Int(i64),
+    /// Floating-point literal
+    Float(f64),
+    /// String literal
+    String(String),
+    /// Boolean literal
+    Bool(bool),
+}
+
+/// Match arm for pattern matching.
+///
+/// Represents a single arm in a match expression.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct MatchArm {
+    /// Pattern to match
+    pub pattern: Pattern,
+    /// Optional guard condition
+    pub guard: Option<Box<Expr>>,
+    /// Expression to evaluate if pattern matches
+    pub body: Box<Expr>,
+}
+
+/// Pattern for pattern matching.
+///
+/// Represents patterns used in match expressions and destructuring.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Pattern {
+    /// Wildcard pattern `_` (matches anything)
+    Wildcard,
+    /// Identifier pattern (binds to variable)
+    Identifier(String),
+    /// Literal pattern (matches exact value)
+    Literal(Literal),
+    /// Constructor pattern with fields
+    Constructor {
+        /// Constructor name
+        name: String,
+        /// Field patterns
+        fields: Vec<Pattern>,
+    },
+    /// Tuple pattern
+    Tuple(Vec<Pattern>),
+}
+
+/// Statement node for function bodies.
+///
+/// Represents imperative statements that perform actions or control flow.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Stmt {
+    /// Let binding (variable declaration)
+    Let {
+        /// Variable name
+        name: String,
+        /// Optional type annotation
+        type_ann: Option<TypeExpr>,
+        /// Initial value
+        value: Expr,
+    },
+    /// Assignment to existing variable
+    Assign {
+        /// Target of assignment
+        target: Expr,
+        /// Value being assigned
+        value: Expr,
+    },
+    /// For loop
+    For {
+        /// Loop variable
+        binding: String,
+        /// Iterable expression
+        iterable: Expr,
+        /// Loop body
+        body: Vec<Stmt>,
+    },
+    /// While loop
+    While {
+        /// Loop condition
+        condition: Expr,
+        /// Loop body
+        body: Vec<Stmt>,
+    },
+    /// Infinite loop
+    Loop {
+        /// Loop body
+        body: Vec<Stmt>,
+    },
+    /// Break statement
+    Break,
+    /// Continue statement
+    Continue,
+    /// Return statement
+    Return(Option<Expr>),
+    /// Expression statement
+    Expr(Expr),
+}
+
+/// Function parameter with type annotation.
+///
+/// Represents a parameter in a function declaration.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct FunctionParam {
+    /// Parameter name
+    pub name: String,
+    /// Parameter type
+    pub type_ann: TypeExpr,
+}
+
+/// Function declaration for DOL 2.0.
+///
+/// Represents a function definition inside a gene or trait body.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct FunctionDecl {
+    /// Function name
+    pub name: String,
+    /// Function parameters
+    pub params: Vec<FunctionParam>,
+    /// Optional return type
+    pub return_type: Option<TypeExpr>,
+    /// Function body (statements)
+    pub body: Vec<Stmt>,
+    /// Source location
+    pub span: Span,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

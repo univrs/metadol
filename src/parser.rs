@@ -27,6 +27,7 @@
 use crate::ast::*;
 use crate::error::ParseError;
 use crate::lexer::{Lexer, Token, TokenKind};
+use crate::pratt::{infix_binding_power, prefix_binding_power};
 
 /// The parser for Metal DOL source text.
 ///
@@ -652,6 +653,727 @@ impl<'a> Parser<'a> {
         }
 
         Ok(content.trim().to_string())
+    }
+
+    // === DOL 2.0 Expression Parsing ===
+
+    /// Parses an expression using Pratt parsing for operator precedence.
+    ///
+    /// # Arguments
+    ///
+    /// * `min_bp` - Minimum binding power for this expression context
+    ///
+    /// # Returns
+    ///
+    /// The parsed expression on success, or a ParseError on failure.
+    pub fn parse_expr(&mut self, min_bp: u8) -> Result<Expr, ParseError> {
+        // Parse prefix or atom
+        let mut lhs = self.parse_prefix_or_atom()?;
+
+        // Parse infix operators with binding power
+        loop {
+            // Check for infix operators
+            if let Some((left_bp, right_bp)) = infix_binding_power(&self.current.kind) {
+                if left_bp < min_bp {
+                    break;
+                }
+
+                let op = self.current.kind;
+                self.advance();
+
+                let rhs = self.parse_expr(right_bp)?;
+                lhs = self.make_binary_expr(lhs, op, rhs)?;
+            } else if self.current.kind == TokenKind::LeftParen {
+                // Function call
+                self.advance();
+                let mut args = Vec::new();
+                while self.current.kind != TokenKind::RightParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    args.push(self.parse_expr(0)?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(TokenKind::RightParen)?;
+                lhs = Expr::Call {
+                    callee: Box::new(lhs),
+                    args,
+                };
+            } else if self.current.kind == TokenKind::LeftBracket {
+                // Array indexing (parsed as function call for now)
+                self.advance();
+                let index = self.parse_expr(0)?;
+                self.expect(TokenKind::RightBracket)?;
+                lhs = Expr::Call {
+                    callee: Box::new(lhs),
+                    args: vec![index],
+                };
+            } else {
+                break;
+            }
+        }
+
+        Ok(lhs)
+    }
+
+    /// Parses prefix operators and atomic expressions.
+    fn parse_prefix_or_atom(&mut self) -> Result<Expr, ParseError> {
+        // Special case for Bang: check if it's eval (!{...}) or logical not (!expr)
+        if self.current.kind == TokenKind::Bang {
+            self.advance();
+            if self.current.kind == TokenKind::LeftBrace {
+                // Eval: !{ expr }
+                self.advance();
+                let expr = self.parse_expr(0)?;
+                self.expect(TokenKind::RightBrace)?;
+                return Ok(Expr::Eval(Box::new(expr)));
+            } else {
+                // Logical not: !expr
+                let bp = prefix_binding_power(&TokenKind::Bang).unwrap();
+                let operand = self.parse_expr(bp)?;
+                return Ok(Expr::Unary {
+                    op: UnaryOp::Not,
+                    operand: Box::new(operand),
+                });
+            }
+        }
+
+        // Check for other prefix operators
+        if let Some(bp) = prefix_binding_power(&self.current.kind) {
+            let op = self.current.kind;
+            self.advance();
+
+            let operand = self.parse_expr(bp)?;
+            return self.make_unary_expr(op, operand);
+        }
+
+        // Parse atoms
+        match self.current.kind {
+            // Literals
+            TokenKind::String => {
+                let value = self.current.lexeme.clone();
+                self.advance();
+                Ok(Expr::Literal(Literal::String(value)))
+            }
+            TokenKind::Identifier => {
+                let name = self.current.lexeme.clone();
+                self.advance();
+
+                // Check for special boolean literals
+                if name == "true" {
+                    return Ok(Expr::Literal(Literal::Bool(true)));
+                } else if name == "false" {
+                    return Ok(Expr::Literal(Literal::Bool(false)));
+                }
+
+                Ok(Expr::Identifier(name))
+            }
+
+            // Parenthesized expression
+            TokenKind::LeftParen => {
+                self.advance();
+                let expr = self.parse_expr(0)?;
+                self.expect(TokenKind::RightParen)?;
+                Ok(expr)
+            }
+
+            // Lambda expression: |params| body
+            TokenKind::Bar => self.parse_lambda(),
+
+            // If expression
+            TokenKind::If => self.parse_if_expr(),
+
+            // Match expression
+            TokenKind::Match => self.parse_match_expr(),
+
+            // Block expression
+            TokenKind::LeftBrace => self.parse_block_expr(),
+
+            // Eval or logical not: handled by prefix operators
+            // Type reflection: ?TypeName
+            TokenKind::Reflect => {
+                self.advance();
+                let type_expr = self.parse_type()?;
+                Ok(Expr::Reflect(Box::new(type_expr)))
+            }
+
+            _ => Err(ParseError::UnexpectedToken {
+                expected: "expression".to_string(),
+                found: format!("'{}'", self.current.lexeme),
+                span: self.current.span,
+            }),
+        }
+    }
+
+    /// Creates a binary expression from operator token.
+    fn make_binary_expr(
+        &self,
+        left: Expr,
+        op_token: TokenKind,
+        right: Expr,
+    ) -> Result<Expr, ParseError> {
+        let op = match op_token {
+            TokenKind::Plus => BinaryOp::Add,
+            TokenKind::Minus => BinaryOp::Sub,
+            TokenKind::Star => BinaryOp::Mul,
+            TokenKind::Slash => BinaryOp::Div,
+            TokenKind::Percent => BinaryOp::Mod,
+            TokenKind::Caret => BinaryOp::Pow,
+            TokenKind::Eq => BinaryOp::Eq,
+            TokenKind::Ne => BinaryOp::Ne,
+            TokenKind::Lt => BinaryOp::Lt,
+            TokenKind::Le => BinaryOp::Le,
+            TokenKind::Greater => BinaryOp::Gt,
+            TokenKind::GreaterEqual => BinaryOp::Ge,
+            TokenKind::And => BinaryOp::And,
+            TokenKind::Or => BinaryOp::Or,
+            TokenKind::Pipe => BinaryOp::Pipe,
+            TokenKind::Compose => BinaryOp::Compose,
+            TokenKind::At => BinaryOp::Apply,
+            TokenKind::Bind => BinaryOp::Bind,
+            TokenKind::Dot => BinaryOp::Member,
+            _ => {
+                return Err(ParseError::InvalidStatement {
+                    message: format!("invalid binary operator: {:?}", op_token),
+                    span: self.current.span,
+                })
+            }
+        };
+
+        Ok(Expr::Binary {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        })
+    }
+
+    /// Creates a unary expression from operator token.
+    fn make_unary_expr(&self, op_token: TokenKind, operand: Expr) -> Result<Expr, ParseError> {
+        let op = match op_token {
+            TokenKind::Minus => UnaryOp::Neg,
+            TokenKind::Bang => UnaryOp::Not,
+            TokenKind::Quote => UnaryOp::Quote,
+            TokenKind::Reflect => UnaryOp::Reflect,
+            _ => {
+                return Err(ParseError::InvalidStatement {
+                    message: format!("invalid unary operator: {:?}", op_token),
+                    span: self.current.span,
+                })
+            }
+        };
+
+        Ok(Expr::Unary {
+            op,
+            operand: Box::new(operand),
+        })
+    }
+
+    /// Parses a lambda expression: |params| body
+    fn parse_lambda(&mut self) -> Result<Expr, ParseError> {
+        self.expect(TokenKind::Bar)?;
+
+        let mut params = Vec::new();
+        while self.current.kind != TokenKind::Bar && self.current.kind != TokenKind::Eof {
+            let name = self.expect_identifier()?;
+            let type_ann = if self.current.kind == TokenKind::Colon {
+                self.advance();
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
+            params.push((name, type_ann));
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        self.expect(TokenKind::Bar)?;
+
+        let return_type = if self.current.kind == TokenKind::Arrow {
+            self.advance();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        let body = Box::new(self.parse_expr(0)?);
+
+        Ok(Expr::Lambda {
+            params,
+            return_type,
+            body,
+        })
+    }
+
+    /// Parses an if expression: if condition { then } else { else }
+    fn parse_if_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(TokenKind::If)?;
+
+        let condition = Box::new(self.parse_expr(0)?);
+
+        self.expect(TokenKind::LeftBrace)?;
+        let then_branch = Box::new(self.parse_block_expr_inner()?);
+        self.expect(TokenKind::RightBrace)?;
+
+        let else_branch = if self.current.kind == TokenKind::Else {
+            self.advance();
+            if self.current.kind == TokenKind::If {
+                // else if
+                Some(Box::new(self.parse_if_expr()?))
+            } else {
+                self.expect(TokenKind::LeftBrace)?;
+                let else_expr = Box::new(self.parse_block_expr_inner()?);
+                self.expect(TokenKind::RightBrace)?;
+                Some(else_expr)
+            }
+        } else {
+            None
+        };
+
+        Ok(Expr::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
+    }
+
+    /// Parses a match expression.
+    fn parse_match_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(TokenKind::Match)?;
+
+        let scrutinee = Box::new(self.parse_expr(0)?);
+
+        self.expect(TokenKind::LeftBrace)?;
+
+        let mut arms = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            let pattern = self.parse_pattern()?;
+
+            let guard = if self.current.kind == TokenKind::If {
+                self.advance();
+                Some(Box::new(self.parse_expr(0)?))
+            } else {
+                None
+            };
+
+            self.expect(TokenKind::FatArrow)?;
+
+            let body = Box::new(self.parse_expr(0)?);
+
+            arms.push(MatchArm {
+                pattern,
+                guard,
+                body,
+            });
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(Expr::Match { scrutinee, arms })
+    }
+
+    /// Parses a pattern for match expressions.
+    pub fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
+        match self.current.kind {
+            TokenKind::Underscore => {
+                self.advance();
+                Ok(Pattern::Wildcard)
+            }
+            TokenKind::String => {
+                let value = self.current.lexeme.clone();
+                self.advance();
+                Ok(Pattern::Literal(Literal::String(value)))
+            }
+            TokenKind::Identifier => {
+                let name = self.current.lexeme.clone();
+                self.advance();
+
+                // Check for constructor pattern
+                if self.current.kind == TokenKind::LeftParen {
+                    self.advance();
+                    let mut fields = Vec::new();
+                    while self.current.kind != TokenKind::RightParen
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        fields.push(self.parse_pattern()?);
+                        if self.current.kind == TokenKind::Comma {
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                    }
+                    self.expect(TokenKind::RightParen)?;
+                    Ok(Pattern::Constructor { name, fields })
+                } else if name == "true" {
+                    Ok(Pattern::Literal(Literal::Bool(true)))
+                } else if name == "false" {
+                    Ok(Pattern::Literal(Literal::Bool(false)))
+                } else {
+                    Ok(Pattern::Identifier(name))
+                }
+            }
+            TokenKind::LeftParen => {
+                self.advance();
+                let mut patterns = Vec::new();
+                while self.current.kind != TokenKind::RightParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    patterns.push(self.parse_pattern()?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(TokenKind::RightParen)?;
+                Ok(Pattern::Tuple(patterns))
+            }
+            _ => Err(ParseError::UnexpectedToken {
+                expected: "pattern".to_string(),
+                found: format!("'{}'", self.current.lexeme),
+                span: self.current.span,
+            }),
+        }
+    }
+
+    /// Parses a block expression: { statements; final_expr }
+    fn parse_block_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(TokenKind::LeftBrace)?;
+        let expr = self.parse_block_expr_inner()?;
+        self.expect(TokenKind::RightBrace)?;
+        Ok(expr)
+    }
+
+    /// Parses the interior of a block expression (without braces).
+    fn parse_block_expr_inner(&mut self) -> Result<Expr, ParseError> {
+        let mut statements = Vec::new();
+        let mut final_expr = None;
+
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            // Check if this is a statement or final expression
+            if self.is_statement_keyword() {
+                statements.push(self.parse_stmt()?);
+            } else {
+                // Try to parse as expression
+                let expr = self.parse_expr(0)?;
+
+                // If followed by semicolon, it's a statement
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                    statements.push(Stmt::Expr(expr));
+                } else {
+                    // It's the final expression
+                    final_expr = Some(Box::new(expr));
+                    break;
+                }
+            }
+        }
+
+        Ok(Expr::Block {
+            statements,
+            final_expr,
+        })
+    }
+
+    /// Checks if the current token is a statement keyword.
+    fn is_statement_keyword(&self) -> bool {
+        matches!(
+            self.current.kind,
+            TokenKind::Let
+                | TokenKind::For
+                | TokenKind::While
+                | TokenKind::Loop
+                | TokenKind::Break
+                | TokenKind::Continue
+                | TokenKind::Return
+        )
+    }
+
+    /// Parses a statement.
+    pub fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
+        match self.current.kind {
+            TokenKind::Let => {
+                self.advance();
+                let name = self.expect_identifier()?;
+
+                let type_ann = if self.current.kind == TokenKind::Colon {
+                    self.advance();
+                    Some(self.parse_type()?)
+                } else {
+                    None
+                };
+
+                self.expect(TokenKind::Equal)?;
+                let value = self.parse_expr(0)?;
+                self.expect(TokenKind::Semicolon)?;
+
+                Ok(Stmt::Let {
+                    name,
+                    type_ann,
+                    value,
+                })
+            }
+            TokenKind::For => self.parse_for_stmt(),
+            TokenKind::While => self.parse_while_stmt(),
+            TokenKind::Loop => self.parse_loop_stmt(),
+            TokenKind::Break => {
+                self.advance();
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Break)
+            }
+            TokenKind::Continue => {
+                self.advance();
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Continue)
+            }
+            TokenKind::Return => {
+                self.advance();
+                let value = if self.current.kind != TokenKind::Semicolon {
+                    Some(self.parse_expr(0)?)
+                } else {
+                    None
+                };
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Return(value))
+            }
+            _ => {
+                let expr = self.parse_expr(0)?;
+                self.expect(TokenKind::Semicolon)?;
+                Ok(Stmt::Expr(expr))
+            }
+        }
+    }
+
+    /// Parses a for loop statement.
+    fn parse_for_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.expect(TokenKind::For)?;
+
+        let binding = self.expect_identifier()?;
+        self.expect(TokenKind::In)?;
+        let iterable = self.parse_expr(0)?;
+
+        self.expect(TokenKind::LeftBrace)?;
+        let mut body = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            body.push(self.parse_stmt()?);
+        }
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(Stmt::For {
+            binding,
+            iterable,
+            body,
+        })
+    }
+
+    /// Parses a while loop statement.
+    fn parse_while_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.expect(TokenKind::While)?;
+
+        let condition = self.parse_expr(0)?;
+
+        self.expect(TokenKind::LeftBrace)?;
+        let mut body = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            body.push(self.parse_stmt()?);
+        }
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(Stmt::While { condition, body })
+    }
+
+    /// Parses a loop statement.
+    fn parse_loop_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.expect(TokenKind::Loop)?;
+
+        self.expect(TokenKind::LeftBrace)?;
+        let mut body = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            body.push(self.parse_stmt()?);
+        }
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(Stmt::Loop { body })
+    }
+
+    /// Parses a type expression.
+    pub fn parse_type(&mut self) -> Result<TypeExpr, ParseError> {
+        // Handle built-in type keywords
+        let base_type = match self.current.kind {
+            TokenKind::Int8 => {
+                self.advance();
+                TypeExpr::Named("Int8".to_string())
+            }
+            TokenKind::Int16 => {
+                self.advance();
+                TypeExpr::Named("Int16".to_string())
+            }
+            TokenKind::Int32 => {
+                self.advance();
+                TypeExpr::Named("Int32".to_string())
+            }
+            TokenKind::Int64 => {
+                self.advance();
+                TypeExpr::Named("Int64".to_string())
+            }
+            TokenKind::UInt8 => {
+                self.advance();
+                TypeExpr::Named("UInt8".to_string())
+            }
+            TokenKind::UInt16 => {
+                self.advance();
+                TypeExpr::Named("UInt16".to_string())
+            }
+            TokenKind::UInt32 => {
+                self.advance();
+                TypeExpr::Named("UInt32".to_string())
+            }
+            TokenKind::UInt64 => {
+                self.advance();
+                TypeExpr::Named("UInt64".to_string())
+            }
+            TokenKind::Float32 => {
+                self.advance();
+                TypeExpr::Named("Float32".to_string())
+            }
+            TokenKind::Float64 => {
+                self.advance();
+                TypeExpr::Named("Float64".to_string())
+            }
+            TokenKind::BoolType => {
+                self.advance();
+                TypeExpr::Named("Bool".to_string())
+            }
+            TokenKind::StringType => {
+                self.advance();
+                TypeExpr::Named("String".to_string())
+            }
+            TokenKind::VoidType => {
+                self.advance();
+                TypeExpr::Named("Void".to_string())
+            }
+            TokenKind::Identifier => {
+                let name = self.expect_identifier()?;
+
+                // Check for generic type
+                if self.current.kind == TokenKind::Lt {
+                    self.advance();
+                    let mut args = Vec::new();
+                    while self.current.kind != TokenKind::Greater
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        args.push(self.parse_type()?);
+                        if self.current.kind == TokenKind::Comma {
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                    }
+                    self.expect(TokenKind::Greater)?;
+                    TypeExpr::Generic { name, args }
+                } else {
+                    TypeExpr::Named(name)
+                }
+            }
+            TokenKind::LeftParen => {
+                self.advance();
+                let mut types = Vec::new();
+                while self.current.kind != TokenKind::RightParen
+                    && self.current.kind != TokenKind::Eof
+                {
+                    types.push(self.parse_type()?);
+                    if self.current.kind == TokenKind::Comma {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                self.expect(TokenKind::RightParen)?;
+
+                // Check if it's a function type
+                if self.current.kind == TokenKind::Arrow {
+                    self.advance();
+                    let return_type = Box::new(self.parse_type()?);
+                    TypeExpr::Function {
+                        params: types,
+                        return_type,
+                    }
+                } else {
+                    TypeExpr::Tuple(types)
+                }
+            }
+            _ => {
+                return Err(ParseError::UnexpectedToken {
+                    expected: "type".to_string(),
+                    found: format!("'{}'", self.current.lexeme),
+                    span: self.current.span,
+                })
+            }
+        };
+
+        Ok(base_type)
+    }
+
+    /// Parses a function declaration (for DOL 2.0 gene/trait bodies).
+    #[allow(dead_code)]
+    fn parse_function_decl(&mut self) -> Result<FunctionDecl, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Function)?;
+
+        let name = self.expect_identifier()?;
+
+        self.expect(TokenKind::LeftParen)?;
+        let mut params = Vec::new();
+        while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof {
+            let param_name = self.expect_identifier()?;
+            self.expect(TokenKind::Colon)?;
+            let type_ann = self.parse_type()?;
+            params.push(FunctionParam {
+                name: param_name,
+                type_ann,
+            });
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RightParen)?;
+
+        let return_type = if self.current.kind == TokenKind::Arrow {
+            self.advance();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        self.expect(TokenKind::LeftBrace)?;
+        let mut body = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            body.push(self.parse_stmt()?);
+        }
+        self.expect(TokenKind::RightBrace)?;
+
+        let span = start_span.merge(&self.previous.span);
+
+        Ok(FunctionDecl {
+            name,
+            params,
+            return_type,
+            body,
+            span,
+        })
     }
 
     // === Helper Methods ===

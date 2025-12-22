@@ -402,7 +402,8 @@ fn test_error_on_unexpected_char() {
 
 #[test]
 fn test_errors_collected() {
-    let mut lexer = Lexer::new("$ % ^");
+    // Use characters that are not valid in DOL ($ ~ `)
+    let mut lexer = Lexer::new("$ ~ `");
     while lexer.next_token().kind != TokenKind::Eof {}
     assert!(lexer.errors().len() >= 3);
 }
@@ -460,4 +461,408 @@ fn test_token_kind_display() {
     assert_eq!(format!("{}", TokenKind::Gene), "gene");
     assert_eq!(format!("{}", TokenKind::Identifier), "identifier");
     assert_eq!(format!("{}", TokenKind::LeftBrace), "{");
+}
+
+// ============================================
+// Additional DOL 2.0 Comprehensive Tests
+// ============================================
+
+#[test]
+fn test_composition_operators_comprehensive() {
+    let tokens = tokenize("|> >> := <| @");
+    assert_eq!(tokens.len(), 5);
+    assert_eq!(tokens[0].0, TokenKind::Pipe);
+    assert_eq!(tokens[1].0, TokenKind::Compose);
+    assert_eq!(tokens[2].0, TokenKind::Bind);
+    assert_eq!(tokens[3].0, TokenKind::BackPipe);
+    assert_eq!(tokens[4].0, TokenKind::At);
+}
+
+#[test]
+fn test_meta_operators_comprehensive() {
+    let tokens = tokenize("' ! # ? [| |]");
+    assert_eq!(tokens.len(), 6);
+    assert_eq!(tokens[0].0, TokenKind::Quote);
+    assert_eq!(tokens[1].0, TokenKind::Bang);
+    assert_eq!(tokens[2].0, TokenKind::Macro);
+    assert_eq!(tokens[3].0, TokenKind::Reflect);
+    assert_eq!(tokens[4].0, TokenKind::IdiomOpen);
+    assert_eq!(tokens[5].0, TokenKind::IdiomClose);
+}
+
+#[test]
+fn test_control_keywords_comprehensive() {
+    let input = "let if else match for while loop break continue return in where";
+    let tokens = tokenize(input);
+    assert_eq!(tokens.len(), 12);
+    assert_eq!(tokens[0].0, TokenKind::Let);
+    assert_eq!(tokens[1].0, TokenKind::If);
+    assert_eq!(tokens[2].0, TokenKind::Else);
+    assert_eq!(tokens[3].0, TokenKind::Match);
+    assert_eq!(tokens[4].0, TokenKind::For);
+    assert_eq!(tokens[5].0, TokenKind::While);
+    assert_eq!(tokens[6].0, TokenKind::Loop);
+    assert_eq!(tokens[7].0, TokenKind::Break);
+    assert_eq!(tokens[8].0, TokenKind::Continue);
+    assert_eq!(tokens[9].0, TokenKind::Return);
+    assert_eq!(tokens[10].0, TokenKind::In);
+    assert_eq!(tokens[11].0, TokenKind::Where);
+}
+
+#[test]
+fn test_lambda_syntax_comprehensive() {
+    let tokens = tokenize("| -> => _");
+    assert_eq!(tokens.len(), 4);
+    assert_eq!(tokens[0].0, TokenKind::Bar);
+    assert_eq!(tokens[1].0, TokenKind::Arrow);
+    assert_eq!(tokens[2].0, TokenKind::FatArrow);
+    assert_eq!(tokens[3].0, TokenKind::Underscore);
+}
+
+#[test]
+fn test_type_keywords_all() {
+    let input = "Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 UInt64";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Int8);
+    assert_eq!(tokens[1].0, TokenKind::Int16);
+    assert_eq!(tokens[2].0, TokenKind::Int32);
+    assert_eq!(tokens[3].0, TokenKind::Int64);
+    assert_eq!(tokens[4].0, TokenKind::UInt8);
+    assert_eq!(tokens[5].0, TokenKind::UInt16);
+    assert_eq!(tokens[6].0, TokenKind::UInt32);
+    assert_eq!(tokens[7].0, TokenKind::UInt64);
+
+    let input2 = "Float32 Float64 Bool String Void";
+    let tokens2 = tokenize(input2);
+    assert_eq!(tokens2[0].0, TokenKind::Float32);
+    assert_eq!(tokens2[1].0, TokenKind::Float64);
+    assert_eq!(tokens2[2].0, TokenKind::BoolType);
+    assert_eq!(tokens2[3].0, TokenKind::StringType);
+    assert_eq!(tokens2[4].0, TokenKind::VoidType);
+}
+
+#[test]
+fn test_idiom_brackets_comprehensive() {
+    let tokens = tokenize("[| |]");
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].0, TokenKind::IdiomOpen);
+    assert_eq!(tokens[1].0, TokenKind::IdiomClose);
+
+    // Test that [| is not confused with [ and |
+    let tokens2 = tokenize("[ |");
+    assert_eq!(tokens2.len(), 2);
+    assert_eq!(tokens2[0].0, TokenKind::LeftBracket);
+    assert_eq!(tokens2[1].0, TokenKind::Bar);
+}
+
+#[test]
+fn test_pipe_vs_or_disambiguation() {
+    // |> should be pipe operator
+    let tokens = tokenize("|>");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Pipe);
+
+    // || should be logical or
+    let tokens = tokenize("||");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Or);
+
+    // | by itself should be bar (lambda delimiter)
+    let tokens = tokenize("|");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Bar);
+
+    // |] should be idiom close
+    let tokens = tokenize("|]");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::IdiomClose);
+}
+
+#[test]
+fn test_arrow_vs_minus_disambiguation() {
+    // -> should be arrow
+    let tokens = tokenize("->");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Arrow);
+
+    // - by itself should be minus
+    let tokens = tokenize("-");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Minus);
+
+    // - with space should be two tokens
+    let tokens = tokenize("- >");
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].0, TokenKind::Minus);
+    assert_eq!(tokens[1].0, TokenKind::Greater);
+}
+
+#[test]
+fn test_fat_arrow_vs_equals_disambiguation() {
+    // => should be fat arrow
+    let tokens = tokenize("=>");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::FatArrow);
+
+    // = by itself should be equals
+    let tokens = tokenize("=");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Equal);
+
+    // == should be equality comparison
+    let tokens = tokenize("==");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Eq);
+}
+
+#[test]
+fn test_bind_vs_colon_disambiguation() {
+    // := should be bind
+    let tokens = tokenize(":=");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Bind);
+
+    // : by itself should be colon
+    let tokens = tokenize(":");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Colon);
+}
+
+#[test]
+fn test_compose_vs_greater_disambiguation() {
+    // >> should be compose
+    let tokens = tokenize(">>");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Compose);
+
+    // >= should be greater equal
+    let tokens = tokenize(">=");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::GreaterEqual);
+
+    // > by itself should be greater
+    let tokens = tokenize(">");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Greater);
+}
+
+#[test]
+fn test_complex_pipeline_expression() {
+    let input = "data |> transform |> validate";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0], (TokenKind::Identifier, "data".to_string()));
+    assert_eq!(tokens[1], (TokenKind::Pipe, "|>".to_string()));
+    assert_eq!(tokens[2], (TokenKind::Identifier, "transform".to_string()));
+    assert_eq!(tokens[3], (TokenKind::Pipe, "|>".to_string()));
+    assert_eq!(tokens[4], (TokenKind::Identifier, "validate".to_string()));
+}
+
+#[test]
+fn test_complex_compose_expression() {
+    let input = "double >> increment >> square";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0], (TokenKind::Identifier, "double".to_string()));
+    assert_eq!(tokens[1], (TokenKind::Compose, ">>".to_string()));
+    assert_eq!(
+        tokens[2],
+        (TokenKind::Identifier, "increment".to_string())
+    );
+    assert_eq!(tokens[3], (TokenKind::Compose, ">>".to_string()));
+    assert_eq!(tokens[4], (TokenKind::Identifier, "square".to_string()));
+}
+
+#[test]
+fn test_lambda_expression_tokens() {
+    let input = "|x| -> Int32";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Bar);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // x
+    assert_eq!(tokens[2].0, TokenKind::Bar);
+    assert_eq!(tokens[3].0, TokenKind::Arrow);
+    assert_eq!(tokens[4].0, TokenKind::Int32);
+}
+
+#[test]
+fn test_match_expression_tokens() {
+    let input = "match value { x => result }";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Match);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // value
+    assert_eq!(tokens[2].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[3].0, TokenKind::Identifier); // x
+    assert_eq!(tokens[4].0, TokenKind::FatArrow);
+    assert_eq!(tokens[5].0, TokenKind::Identifier); // result
+    assert_eq!(tokens[6].0, TokenKind::RightBrace);
+}
+
+#[test]
+fn test_for_loop_tokens() {
+    let input = "for item in items { }";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::For);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // item
+    assert_eq!(tokens[2].0, TokenKind::In);
+    assert_eq!(tokens[3].0, TokenKind::Identifier); // items
+    assert_eq!(tokens[4].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[5].0, TokenKind::RightBrace);
+}
+
+#[test]
+fn test_while_loop_tokens() {
+    let input = "while condition { body; }";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::While);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // condition
+    assert_eq!(tokens[2].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[3].0, TokenKind::Identifier); // body
+    assert_eq!(tokens[4].0, TokenKind::Semicolon);
+    assert_eq!(tokens[5].0, TokenKind::RightBrace);
+}
+
+#[test]
+fn test_if_else_tokens() {
+    let input = "if x { a } else { b }";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::If);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // x
+    assert_eq!(tokens[2].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[3].0, TokenKind::Identifier); // a
+    assert_eq!(tokens[4].0, TokenKind::RightBrace);
+    assert_eq!(tokens[5].0, TokenKind::Else);
+    assert_eq!(tokens[6].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[7].0, TokenKind::Identifier); // b
+    assert_eq!(tokens[8].0, TokenKind::RightBrace);
+}
+
+#[test]
+fn test_quote_and_eval_tokens() {
+    let input = "'expr !code";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Quote);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // expr
+    assert_eq!(tokens[2].0, TokenKind::Bang);
+    assert_eq!(tokens[3].0, TokenKind::Identifier); // code
+}
+
+#[test]
+fn test_all_arithmetic_operators() {
+    let tokens = tokenize("+ - * / % ^");
+    assert_eq!(tokens.len(), 6);
+    assert_eq!(tokens[0].0, TokenKind::Plus);
+    assert_eq!(tokens[1].0, TokenKind::Minus);
+    assert_eq!(tokens[2].0, TokenKind::Star);
+    assert_eq!(tokens[3].0, TokenKind::Slash);
+    assert_eq!(tokens[4].0, TokenKind::Percent);
+    assert_eq!(tokens[5].0, TokenKind::Caret);
+}
+
+#[test]
+fn test_all_comparison_operators() {
+    let tokens = tokenize("== != < <= > >=");
+    assert_eq!(tokens.len(), 6);
+    assert_eq!(tokens[0].0, TokenKind::Eq);
+    assert_eq!(tokens[1].0, TokenKind::Ne);
+    assert_eq!(tokens[2].0, TokenKind::Lt);
+    assert_eq!(tokens[3].0, TokenKind::Le);
+    assert_eq!(tokens[4].0, TokenKind::Greater);
+    assert_eq!(tokens[5].0, TokenKind::GreaterEqual);
+}
+
+#[test]
+fn test_all_logical_operators() {
+    let tokens = tokenize("&& || !");
+    assert_eq!(tokens.len(), 3);
+    assert_eq!(tokens[0].0, TokenKind::And);
+    assert_eq!(tokens[1].0, TokenKind::Or);
+    assert_eq!(tokens[2].0, TokenKind::Bang);
+}
+
+#[test]
+fn test_function_keyword() {
+    let tokens = tokenize("function");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Function);
+}
+
+#[test]
+fn test_all_delimiters() {
+    let tokens = tokenize("( ) [ ] { } , : ; .");
+    assert_eq!(tokens.len(), 10);
+    assert_eq!(tokens[0].0, TokenKind::LeftParen);
+    assert_eq!(tokens[1].0, TokenKind::RightParen);
+    assert_eq!(tokens[2].0, TokenKind::LeftBracket);
+    assert_eq!(tokens[3].0, TokenKind::RightBracket);
+    assert_eq!(tokens[4].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[5].0, TokenKind::RightBrace);
+    assert_eq!(tokens[6].0, TokenKind::Comma);
+    assert_eq!(tokens[7].0, TokenKind::Colon);
+    assert_eq!(tokens[8].0, TokenKind::Semicolon);
+    assert_eq!(tokens[9].0, TokenKind::Dot);
+}
+
+#[test]
+fn test_underscore_wildcard_standalone() {
+    let tokens = tokenize("_");
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].0, TokenKind::Underscore);
+    assert_eq!(tokens[0].1, "_");
+}
+
+#[test]
+fn test_underscore_in_match_pattern() {
+    let tokens = tokenize("_ => default");
+    assert_eq!(tokens[0].0, TokenKind::Underscore);
+    assert_eq!(tokens[1].0, TokenKind::FatArrow);
+    assert_eq!(tokens[2].0, TokenKind::Identifier);
+}
+
+#[test]
+fn test_mixed_dol1_and_dol2_tokens() {
+    // Test that DOL 1.x and DOL 2.0 tokens can coexist
+    let input = "gene container.pipe { has identity }";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Gene);
+    assert_eq!(tokens[1].0, TokenKind::Identifier); // container.pipe
+    assert_eq!(tokens[2].0, TokenKind::LeftBrace);
+    assert_eq!(tokens[3].0, TokenKind::Has);
+    assert_eq!(tokens[4].0, TokenKind::Identifier); // identity
+    assert_eq!(tokens[5].0, TokenKind::RightBrace);
+}
+
+#[test]
+fn test_operator_precedence_sequence() {
+    // Test a complex expression with multiple operators
+    let input = "a |> f >> g @ x := h";
+    let tokens = tokenize(input);
+    assert_eq!(tokens[0].0, TokenKind::Identifier); // a
+    assert_eq!(tokens[1].0, TokenKind::Pipe);
+    assert_eq!(tokens[2].0, TokenKind::Identifier); // f
+    assert_eq!(tokens[3].0, TokenKind::Compose);
+    assert_eq!(tokens[4].0, TokenKind::Identifier); // g
+    assert_eq!(tokens[5].0, TokenKind::At);
+    assert_eq!(tokens[6].0, TokenKind::Identifier); // x
+    assert_eq!(tokens[7].0, TokenKind::Bind);
+    assert_eq!(tokens[8].0, TokenKind::Identifier); // h
+}
+
+#[test]
+fn test_back_pipe_operator() {
+    let tokens = tokenize("x <| f");
+    assert_eq!(tokens[0].0, TokenKind::Identifier);
+    assert_eq!(tokens[1].0, TokenKind::BackPipe);
+    assert_eq!(tokens[2].0, TokenKind::Identifier);
+}
+
+#[test]
+fn test_reflect_operator() {
+    let tokens = tokenize("?TypeName");
+    assert_eq!(tokens[0].0, TokenKind::Reflect);
+    assert_eq!(tokens[1].0, TokenKind::Identifier);
+}
+
+#[test]
+fn test_macro_operator() {
+    let tokens = tokenize("#macro_name");
+    assert_eq!(tokens[0].0, TokenKind::Macro);
+    assert_eq!(tokens[1].0, TokenKind::Identifier);
 }

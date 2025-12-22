@@ -60,6 +60,7 @@ pub mod ast;
 pub mod error;
 pub mod lexer;
 pub mod parser;
+pub mod pratt;
 pub mod validator;
 
 // Test file parser for .dol.test files

@@ -149,6 +149,98 @@ pub enum TokenKind {
     /// Right brace `}`
     RightBrace,
 
+    // === Composition Operators (DOL 2.0) ===
+    /// Forward pipe `|>`
+    Pipe,
+    /// Function composition `>>`
+    Compose,
+    /// Monadic bind `:=`
+    Bind,
+    /// Backward pipe `<|`
+    BackPipe,
+
+    // === Meta-Programming Operators (DOL 2.0) ===
+    /// Quote/AST capture `'`
+    Quote,
+    /// Eval/logical not `!`
+    Bang,
+    /// Macro invocation `#`
+    Macro,
+    /// Type reflection `?`
+    Reflect,
+    /// Idiom bracket open `[|`
+    IdiomOpen,
+    /// Idiom bracket close `|]`
+    IdiomClose,
+
+    // === Control Flow Keywords (DOL 2.0) ===
+    /// The `let` keyword
+    Let,
+    /// The `if` keyword
+    If,
+    /// The `else` keyword
+    Else,
+    /// The `match` keyword
+    Match,
+    /// The `for` keyword
+    For,
+    /// The `while` keyword
+    While,
+    /// The `loop` keyword
+    Loop,
+    /// The `break` keyword
+    Break,
+    /// The `continue` keyword
+    Continue,
+    /// The `return` keyword
+    Return,
+    /// The `in` keyword
+    In,
+    /// The `where` keyword
+    Where,
+
+    // === Lambda and Type Syntax (DOL 2.0) ===
+    /// Return type/lambda arrow `->`
+    Arrow,
+    /// Match arm/closure `=>`
+    FatArrow,
+    /// Lambda parameter delimiter/bitwise or `|`
+    Bar,
+    /// Wildcard pattern `_`
+    Underscore,
+
+    // === Type Keywords (DOL 2.0) ===
+    /// 8-bit signed integer type
+    Int8,
+    /// 16-bit signed integer type
+    Int16,
+    /// 32-bit signed integer type
+    Int32,
+    /// 64-bit signed integer type
+    Int64,
+    /// 8-bit unsigned integer type
+    UInt8,
+    /// 16-bit unsigned integer type
+    UInt16,
+    /// 32-bit unsigned integer type
+    UInt32,
+    /// 64-bit unsigned integer type
+    UInt64,
+    /// 32-bit floating point type
+    Float32,
+    /// 64-bit floating point type
+    Float64,
+    /// Boolean type
+    BoolType,
+    /// String type
+    StringType,
+    /// Void type
+    VoidType,
+
+    // === Function Keyword (DOL 2.0) ===
+    /// The `function` keyword
+    Function,
+
     // === Operators ===
     /// At symbol `@`
     At,
@@ -158,6 +250,48 @@ pub enum TokenKind {
     GreaterEqual,
     /// Equals `=`
     Equal,
+    /// Plus `+`
+    Plus,
+    /// Minus `-`
+    Minus,
+    /// Star/multiply `*`
+    Star,
+    /// Slash/divide `/`
+    Slash,
+    /// Percent/modulo `%`
+    Percent,
+    /// Caret/power `^`
+    Caret,
+    /// Ampersand/bitwise and `&`
+    And,
+    /// Logical or `||`
+    Or,
+    /// Equality `==`
+    Eq,
+    /// Not equal `!=`
+    Ne,
+    /// Less than `<`
+    Lt,
+    /// Less than or equal `<=`
+    Le,
+    /// Member access `.`
+    Dot,
+
+    // === Delimiters ===
+    /// Left parenthesis `(`
+    LeftParen,
+    /// Right parenthesis `)`
+    RightParen,
+    /// Left bracket `[`
+    LeftBracket,
+    /// Right bracket `]`
+    RightBracket,
+    /// Comma `,`
+    Comma,
+    /// Colon `:`
+    Colon,
+    /// Semicolon `;`
+    Semicolon,
 
     // === Literals ===
     /// A dot-notation identifier
@@ -206,6 +340,35 @@ impl TokenKind {
                 | TokenKind::Each
                 | TokenKind::All
                 | TokenKind::No
+                // DOL 2.0 Control Flow Keywords
+                | TokenKind::Let
+                | TokenKind::If
+                | TokenKind::Else
+                | TokenKind::Match
+                | TokenKind::For
+                | TokenKind::While
+                | TokenKind::Loop
+                | TokenKind::Break
+                | TokenKind::Continue
+                | TokenKind::Return
+                | TokenKind::In
+                | TokenKind::Where
+                // DOL 2.0 Type Keywords
+                | TokenKind::Int8
+                | TokenKind::Int16
+                | TokenKind::Int32
+                | TokenKind::Int64
+                | TokenKind::UInt8
+                | TokenKind::UInt16
+                | TokenKind::UInt32
+                | TokenKind::UInt64
+                | TokenKind::Float32
+                | TokenKind::Float64
+                | TokenKind::BoolType
+                | TokenKind::StringType
+                | TokenKind::VoidType
+                // DOL 2.0 Function Keyword
+                | TokenKind::Function
         )
     }
 
@@ -257,13 +420,83 @@ impl std::fmt::Display for TokenKind {
             TokenKind::No => write!(f, "no"),
             TokenKind::LeftBrace => write!(f, "{{"),
             TokenKind::RightBrace => write!(f, "}}"),
+            // DOL 2.0 Composition Operators
+            TokenKind::Pipe => write!(f, "|>"),
+            TokenKind::Compose => write!(f, ">>"),
+            TokenKind::Bind => write!(f, ":="),
+            TokenKind::BackPipe => write!(f, "<|"),
+            // DOL 2.0 Meta-Programming Operators
+            TokenKind::Quote => write!(f, "'"),
+            TokenKind::Bang => write!(f, "!"),
+            TokenKind::Macro => write!(f, "#"),
+            TokenKind::Reflect => write!(f, "?"),
+            TokenKind::IdiomOpen => write!(f, "[|"),
+            TokenKind::IdiomClose => write!(f, "|]"),
+            // DOL 2.0 Control Flow Keywords
+            TokenKind::Let => write!(f, "let"),
+            TokenKind::If => write!(f, "if"),
+            TokenKind::Else => write!(f, "else"),
+            TokenKind::Match => write!(f, "match"),
+            TokenKind::For => write!(f, "for"),
+            TokenKind::While => write!(f, "while"),
+            TokenKind::Loop => write!(f, "loop"),
+            TokenKind::Break => write!(f, "break"),
+            TokenKind::Continue => write!(f, "continue"),
+            TokenKind::Return => write!(f, "return"),
+            TokenKind::In => write!(f, "in"),
+            TokenKind::Where => write!(f, "where"),
+            // DOL 2.0 Lambda and Type Syntax
+            TokenKind::Arrow => write!(f, "->"),
+            TokenKind::FatArrow => write!(f, "=>"),
+            TokenKind::Bar => write!(f, "|"),
+            TokenKind::Underscore => write!(f, "_"),
+            // DOL 2.0 Type Keywords
+            TokenKind::Int8 => write!(f, "Int8"),
+            TokenKind::Int16 => write!(f, "Int16"),
+            TokenKind::Int32 => write!(f, "Int32"),
+            TokenKind::Int64 => write!(f, "Int64"),
+            TokenKind::UInt8 => write!(f, "UInt8"),
+            TokenKind::UInt16 => write!(f, "UInt16"),
+            TokenKind::UInt32 => write!(f, "UInt32"),
+            TokenKind::UInt64 => write!(f, "UInt64"),
+            TokenKind::Float32 => write!(f, "Float32"),
+            TokenKind::Float64 => write!(f, "Float64"),
+            TokenKind::BoolType => write!(f, "Bool"),
+            TokenKind::StringType => write!(f, "String"),
+            TokenKind::VoidType => write!(f, "Void"),
+            // DOL 2.0 Function Keyword
+            TokenKind::Function => write!(f, "function"),
+            // Operators
             TokenKind::At => write!(f, "@"),
             TokenKind::Greater => write!(f, ">"),
             TokenKind::GreaterEqual => write!(f, ">="),
             TokenKind::Equal => write!(f, "="),
+            TokenKind::Plus => write!(f, "+"),
+            TokenKind::Minus => write!(f, "-"),
+            TokenKind::Star => write!(f, "*"),
+            TokenKind::Slash => write!(f, "/"),
+            TokenKind::Percent => write!(f, "%"),
+            TokenKind::Caret => write!(f, "^"),
+            TokenKind::And => write!(f, "&"),
+            TokenKind::Or => write!(f, "||"),
+            TokenKind::Eq => write!(f, "=="),
+            TokenKind::Ne => write!(f, "!="),
+            TokenKind::Lt => write!(f, "<"),
+            TokenKind::Le => write!(f, "<="),
+            TokenKind::Dot => write!(f, "."),
+            // Delimiters
+            TokenKind::LeftParen => write!(f, "("),
+            TokenKind::RightParen => write!(f, ")"),
+            TokenKind::LeftBracket => write!(f, "["),
+            TokenKind::RightBracket => write!(f, "]"),
+            TokenKind::Comma => write!(f, ","),
+            TokenKind::Colon => write!(f, ":"),
+            TokenKind::Semicolon => write!(f, ";"),
+            // Literals
             TokenKind::Identifier => write!(f, "identifier"),
             TokenKind::Version => write!(f, "version"),
             TokenKind::String => write!(f, "string"),
+            // Special
             TokenKind::Eof => write!(f, "end of file"),
             TokenKind::Error => write!(f, "error"),
         }
@@ -511,18 +744,92 @@ impl<'a> Lexer<'a> {
         let start_line = self.line;
         let start_col = self.column;
 
-        let (kind, len) = if self.remaining.starts_with(">=") {
+        // Check multi-character operators first (longest match)
+        let (kind, len) = if self.remaining.starts_with("|>") {
+            (TokenKind::Pipe, 2)
+        } else if self.remaining.starts_with(">>") {
+            (TokenKind::Compose, 2)
+        } else if self.remaining.starts_with(":=") {
+            (TokenKind::Bind, 2)
+        } else if self.remaining.starts_with("[|") {
+            (TokenKind::IdiomOpen, 2)
+        } else if self.remaining.starts_with("|]") {
+            (TokenKind::IdiomClose, 2)
+        } else if self.remaining.starts_with("->") {
+            (TokenKind::Arrow, 2)
+        } else if self.remaining.starts_with("=>") {
+            (TokenKind::FatArrow, 2)
+        } else if self.remaining.starts_with("==") {
+            (TokenKind::Eq, 2)
+        } else if self.remaining.starts_with("!=") {
+            (TokenKind::Ne, 2)
+        } else if self.remaining.starts_with("<=") {
+            (TokenKind::Le, 2)
+        } else if self.remaining.starts_with(">=") {
             (TokenKind::GreaterEqual, 2)
+        } else if self.remaining.starts_with("&&") {
+            (TokenKind::And, 2)
+        } else if self.remaining.starts_with("||") {
+            (TokenKind::Or, 2)
+        } else if self.remaining.starts_with("<|") {
+            (TokenKind::BackPipe, 2)
+        // Single-character operators
         } else if self.remaining.starts_with('>') {
             (TokenKind::Greater, 1)
+        } else if self.remaining.starts_with('<') {
+            (TokenKind::Lt, 1)
         } else if self.remaining.starts_with('@') {
             (TokenKind::At, 1)
         } else if self.remaining.starts_with('=') {
             (TokenKind::Equal, 1)
+        } else if self.remaining.starts_with('+') {
+            (TokenKind::Plus, 1)
+        } else if self.remaining.starts_with('-') {
+            (TokenKind::Minus, 1)
+        } else if self.remaining.starts_with('*') {
+            (TokenKind::Star, 1)
+        } else if self.remaining.starts_with('/') {
+            // Check if this is a comment, not division
+            if self.remaining.starts_with("//") {
+                return None;
+            }
+            (TokenKind::Slash, 1)
+        } else if self.remaining.starts_with('%') {
+            (TokenKind::Percent, 1)
+        } else if self.remaining.starts_with('^') {
+            (TokenKind::Caret, 1)
+        } else if self.remaining.starts_with('&') {
+            (TokenKind::And, 1)
+        } else if self.remaining.starts_with('|') {
+            (TokenKind::Bar, 1)
+        } else if self.remaining.starts_with('\'') {
+            (TokenKind::Quote, 1)
+        } else if self.remaining.starts_with('!') {
+            (TokenKind::Bang, 1)
+        } else if self.remaining.starts_with('#') {
+            (TokenKind::Macro, 1)
+        } else if self.remaining.starts_with('?') {
+            (TokenKind::Reflect, 1)
+        } else if self.remaining.starts_with('(') {
+            (TokenKind::LeftParen, 1)
+        } else if self.remaining.starts_with(')') {
+            (TokenKind::RightParen, 1)
+        } else if self.remaining.starts_with('[') {
+            (TokenKind::LeftBracket, 1)
+        } else if self.remaining.starts_with(']') {
+            (TokenKind::RightBracket, 1)
         } else if self.remaining.starts_with('{') {
             (TokenKind::LeftBrace, 1)
         } else if self.remaining.starts_with('}') {
             (TokenKind::RightBrace, 1)
+        } else if self.remaining.starts_with(',') {
+            (TokenKind::Comma, 1)
+        } else if self.remaining.starts_with(':') {
+            (TokenKind::Colon, 1)
+        } else if self.remaining.starts_with(';') {
+            (TokenKind::Semicolon, 1)
+        } else if self.remaining.starts_with('.') {
+            (TokenKind::Dot, 1)
         } else {
             return None;
         };
@@ -546,8 +853,26 @@ impl<'a> Lexer<'a> {
             return self.try_version();
         }
 
-        // Must start with letter
-        if !first.is_alphabetic() {
+        // Check for underscore wildcard pattern
+        if first == '_' {
+            // Peek at next character to see if this is a standalone underscore
+            let next = self.remaining.chars().nth(1);
+            if next.is_none() || !next.unwrap().is_alphanumeric() {
+                let start_pos = self.position;
+                let start_line = self.line;
+                let start_col = self.column;
+                self.advance(1);
+                return Some(Token::new(
+                    TokenKind::Underscore,
+                    "_",
+                    Span::new(start_pos, self.position, start_line, start_col),
+                ));
+            }
+            // Otherwise, it's part of an identifier, continue below
+        }
+
+        // Must start with letter or underscore
+        if !first.is_alphabetic() && first != '_' {
             return None;
         }
 
@@ -630,6 +955,7 @@ impl<'a> Lexer<'a> {
     /// Returns the keyword kind for a lexeme, if it's a keyword.
     fn keyword_kind(&self, lexeme: &str) -> Option<TokenKind> {
         match lexeme {
+            // DOL 1.x keywords
             "gene" => Some(TokenKind::Gene),
             "trait" => Some(TokenKind::Trait),
             "constraint" => Some(TokenKind::Constraint),
@@ -657,6 +983,35 @@ impl<'a> Lexer<'a> {
             "each" => Some(TokenKind::Each),
             "all" => Some(TokenKind::All),
             "no" => Some(TokenKind::No),
+            // DOL 2.0 control flow keywords
+            "let" => Some(TokenKind::Let),
+            "if" => Some(TokenKind::If),
+            "else" => Some(TokenKind::Else),
+            "match" => Some(TokenKind::Match),
+            "for" => Some(TokenKind::For),
+            "while" => Some(TokenKind::While),
+            "loop" => Some(TokenKind::Loop),
+            "break" => Some(TokenKind::Break),
+            "continue" => Some(TokenKind::Continue),
+            "return" => Some(TokenKind::Return),
+            "in" => Some(TokenKind::In),
+            "where" => Some(TokenKind::Where),
+            // DOL 2.0 type keywords
+            "Int8" => Some(TokenKind::Int8),
+            "Int16" => Some(TokenKind::Int16),
+            "Int32" => Some(TokenKind::Int32),
+            "Int64" => Some(TokenKind::Int64),
+            "UInt8" => Some(TokenKind::UInt8),
+            "UInt16" => Some(TokenKind::UInt16),
+            "UInt32" => Some(TokenKind::UInt32),
+            "UInt64" => Some(TokenKind::UInt64),
+            "Float32" => Some(TokenKind::Float32),
+            "Float64" => Some(TokenKind::Float64),
+            "Bool" => Some(TokenKind::BoolType),
+            "String" => Some(TokenKind::StringType),
+            "Void" => Some(TokenKind::VoidType),
+            // DOL 2.0 function keyword
+            "function" => Some(TokenKind::Function),
             _ => None,
         }
     }
@@ -739,5 +1094,173 @@ mod tests {
         let mut lexer = Lexer::new("gene // comment\ncontainer");
         assert_eq!(lexer.next_token().kind, TokenKind::Gene);
         assert_eq!(lexer.next_token().kind, TokenKind::Identifier);
+    }
+
+    // DOL 2.0 Tests
+
+    #[test]
+    fn test_dol2_composition_operators() {
+        let mut lexer = Lexer::new("|> >> := <|");
+        assert_eq!(lexer.next_token().kind, TokenKind::Pipe);
+        assert_eq!(lexer.next_token().kind, TokenKind::Compose);
+        assert_eq!(lexer.next_token().kind, TokenKind::Bind);
+        assert_eq!(lexer.next_token().kind, TokenKind::BackPipe);
+    }
+
+    #[test]
+    fn test_dol2_meta_operators() {
+        let mut lexer = Lexer::new("' ! # ? [| |]");
+        assert_eq!(lexer.next_token().kind, TokenKind::Quote);
+        assert_eq!(lexer.next_token().kind, TokenKind::Bang);
+        assert_eq!(lexer.next_token().kind, TokenKind::Macro);
+        assert_eq!(lexer.next_token().kind, TokenKind::Reflect);
+        assert_eq!(lexer.next_token().kind, TokenKind::IdiomOpen);
+        assert_eq!(lexer.next_token().kind, TokenKind::IdiomClose);
+    }
+
+    #[test]
+    fn test_dol2_control_flow_keywords() {
+        let mut lexer = Lexer::new("if else match for while loop break continue return in where");
+        assert_eq!(lexer.next_token().kind, TokenKind::If);
+        assert_eq!(lexer.next_token().kind, TokenKind::Else);
+        assert_eq!(lexer.next_token().kind, TokenKind::Match);
+        assert_eq!(lexer.next_token().kind, TokenKind::For);
+        assert_eq!(lexer.next_token().kind, TokenKind::While);
+        assert_eq!(lexer.next_token().kind, TokenKind::Loop);
+        assert_eq!(lexer.next_token().kind, TokenKind::Break);
+        assert_eq!(lexer.next_token().kind, TokenKind::Continue);
+        assert_eq!(lexer.next_token().kind, TokenKind::Return);
+        assert_eq!(lexer.next_token().kind, TokenKind::In);
+        assert_eq!(lexer.next_token().kind, TokenKind::Where);
+    }
+
+    #[test]
+    fn test_dol2_lambda_and_type_syntax() {
+        let mut lexer = Lexer::new("-> => | _");
+        assert_eq!(lexer.next_token().kind, TokenKind::Arrow);
+        assert_eq!(lexer.next_token().kind, TokenKind::FatArrow);
+        assert_eq!(lexer.next_token().kind, TokenKind::Bar);
+        assert_eq!(lexer.next_token().kind, TokenKind::Underscore);
+    }
+
+    #[test]
+    fn test_dol2_type_keywords() {
+        let mut lexer = Lexer::new(
+            "Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 UInt64 Float32 Float64 Bool String Void",
+        );
+        assert_eq!(lexer.next_token().kind, TokenKind::Int8);
+        assert_eq!(lexer.next_token().kind, TokenKind::Int16);
+        assert_eq!(lexer.next_token().kind, TokenKind::Int32);
+        assert_eq!(lexer.next_token().kind, TokenKind::Int64);
+        assert_eq!(lexer.next_token().kind, TokenKind::UInt8);
+        assert_eq!(lexer.next_token().kind, TokenKind::UInt16);
+        assert_eq!(lexer.next_token().kind, TokenKind::UInt32);
+        assert_eq!(lexer.next_token().kind, TokenKind::UInt64);
+        assert_eq!(lexer.next_token().kind, TokenKind::Float32);
+        assert_eq!(lexer.next_token().kind, TokenKind::Float64);
+        assert_eq!(lexer.next_token().kind, TokenKind::BoolType);
+        assert_eq!(lexer.next_token().kind, TokenKind::StringType);
+        assert_eq!(lexer.next_token().kind, TokenKind::VoidType);
+    }
+
+    #[test]
+    fn test_dol2_function_keyword() {
+        let mut lexer = Lexer::new("function");
+        assert_eq!(lexer.next_token().kind, TokenKind::Function);
+    }
+
+    #[test]
+    fn test_dol2_arithmetic_operators() {
+        let mut lexer = Lexer::new("+ - * / % ^");
+        assert_eq!(lexer.next_token().kind, TokenKind::Plus);
+        assert_eq!(lexer.next_token().kind, TokenKind::Minus);
+        assert_eq!(lexer.next_token().kind, TokenKind::Star);
+        assert_eq!(lexer.next_token().kind, TokenKind::Slash);
+        assert_eq!(lexer.next_token().kind, TokenKind::Percent);
+        assert_eq!(lexer.next_token().kind, TokenKind::Caret);
+    }
+
+    #[test]
+    fn test_dol2_comparison_operators() {
+        let mut lexer = Lexer::new("== != < <= > >=");
+        assert_eq!(lexer.next_token().kind, TokenKind::Eq);
+        assert_eq!(lexer.next_token().kind, TokenKind::Ne);
+        assert_eq!(lexer.next_token().kind, TokenKind::Lt);
+        assert_eq!(lexer.next_token().kind, TokenKind::Le);
+        assert_eq!(lexer.next_token().kind, TokenKind::Greater);
+        assert_eq!(lexer.next_token().kind, TokenKind::GreaterEqual);
+    }
+
+    #[test]
+    fn test_dol2_logical_operators() {
+        let mut lexer = Lexer::new("&& ||");
+        assert_eq!(lexer.next_token().kind, TokenKind::And);
+        assert_eq!(lexer.next_token().kind, TokenKind::Or);
+    }
+
+    #[test]
+    fn test_dol2_delimiters() {
+        let mut lexer = Lexer::new("( ) [ ] { } , : ; .");
+        assert_eq!(lexer.next_token().kind, TokenKind::LeftParen);
+        assert_eq!(lexer.next_token().kind, TokenKind::RightParen);
+        assert_eq!(lexer.next_token().kind, TokenKind::LeftBracket);
+        assert_eq!(lexer.next_token().kind, TokenKind::RightBracket);
+        assert_eq!(lexer.next_token().kind, TokenKind::LeftBrace);
+        assert_eq!(lexer.next_token().kind, TokenKind::RightBrace);
+        assert_eq!(lexer.next_token().kind, TokenKind::Comma);
+        assert_eq!(lexer.next_token().kind, TokenKind::Colon);
+        assert_eq!(lexer.next_token().kind, TokenKind::Semicolon);
+        assert_eq!(lexer.next_token().kind, TokenKind::Dot);
+    }
+
+    #[test]
+    fn test_dol2_underscore_wildcard() {
+        // Standalone underscore
+        let mut lexer = Lexer::new("_ _,");
+        let token = lexer.next_token();
+        assert_eq!(token.kind, TokenKind::Underscore);
+        assert_eq!(token.lexeme, "_");
+        let token = lexer.next_token();
+        assert_eq!(token.kind, TokenKind::Underscore);
+
+        // Underscore in identifier
+        let mut lexer = Lexer::new("_foo foo_bar");
+        let token = lexer.next_token();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.lexeme, "_foo");
+        let token = lexer.next_token();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.lexeme, "foo_bar");
+    }
+
+    #[test]
+    fn test_dol2_member_access_vs_qualified_identifier() {
+        // Qualified identifier (no spaces)
+        let mut lexer = Lexer::new("container.exists");
+        let token = lexer.next_token();
+        assert_eq!(token.kind, TokenKind::Identifier);
+        assert_eq!(token.lexeme, "container.exists");
+
+        // Member access (with spaces)
+        let mut lexer = Lexer::new("obj . field");
+        assert_eq!(lexer.next_token().kind, TokenKind::Identifier);
+        assert_eq!(lexer.next_token().kind, TokenKind::Dot);
+        assert_eq!(lexer.next_token().kind, TokenKind::Identifier);
+    }
+
+    #[test]
+    fn test_dol2_operator_disambiguation() {
+        // Test that multi-char operators are matched correctly
+        let mut lexer = Lexer::new("| ||");
+        assert_eq!(lexer.next_token().kind, TokenKind::Bar);
+        assert_eq!(lexer.next_token().kind, TokenKind::Or);
+
+        let mut lexer = Lexer::new("> >>");
+        assert_eq!(lexer.next_token().kind, TokenKind::Greater);
+        assert_eq!(lexer.next_token().kind, TokenKind::Compose);
+
+        let mut lexer = Lexer::new(": :=");
+        assert_eq!(lexer.next_token().kind, TokenKind::Colon);
+        assert_eq!(lexer.next_token().kind, TokenKind::Bind);
     }
 }
