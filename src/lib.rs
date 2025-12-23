@@ -69,6 +69,7 @@ pub mod lexer;
 pub mod macros;
 pub mod parser;
 pub mod pratt;
+pub mod reflect;
 pub mod transform;
 pub mod typechecker;
 pub mod validator;
@@ -103,6 +104,9 @@ pub use transform::{
     ConstantFolding, DeadCodeElimination, Fold, MutVisitor, Pass, PassConfig, PassError,
     PassPipeline, PassResult, PassStats, Visitor,
 };
+
+// Reflection system re-exports
+pub use reflect::{FieldInfo, MethodInfo, TypeInfo, TypeKind, TypeRegistry};
 
 /// Parse a DOL source string into an AST.
 ///
