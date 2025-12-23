@@ -1119,7 +1119,7 @@ impl Macro for DbgMacro {
                     statements: vec![
                         crate::ast::Stmt::Let {
                             name: "__dbg_tmp".to_string(),
-                            type_annotation: None,
+                            type_ann: None,
                             value: *expr,
                         },
                         crate::ast::Stmt::Expr(Expr::Call {
@@ -1149,7 +1149,7 @@ impl Macro for DbgMacro {
                     statements: vec![
                         crate::ast::Stmt::Let {
                             name: "__dbg_tmp".to_string(),
-                            type_annotation: None,
+                            type_ann: None,
                             value: expr,
                         },
                         crate::ast::Stmt::Expr(Expr::Call {
@@ -1637,5 +1637,274 @@ mod tests {
         let macro_impl = DeriveMacro;
         assert!(macro_impl.is_attribute_macro());
         assert!(!macro_impl.is_expr_macro());
+    }
+
+    #[test]
+    fn test_assert_macro() {
+        let macro_impl = AssertMacro;
+        let ctx = MacroContext::new();
+
+        // Test with simple condition
+        let input = MacroInput::expr(Expr::Literal(Literal::Bool(true)));
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::If { condition, .. } = *expr {
+                // The condition should be !true (negated)
+                if let Expr::Unary { op, .. } = *condition {
+                    assert!(matches!(op, crate::ast::UnaryOp::Not));
+                } else {
+                    panic!("Expected unary negation");
+                }
+            } else {
+                panic!("Expected if expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_assert_eq_macro() {
+        let macro_impl = AssertEqMacro;
+        let ctx = MacroContext::new();
+
+        let input = MacroInput::expr_list(vec![
+            Expr::Literal(Literal::Int(1)),
+            Expr::Literal(Literal::Int(1)),
+        ]);
+
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::If {
+                condition,
+                then_branch,
+                ..
+            } = *expr
+            {
+                // Condition should be left != right
+                if let Expr::Binary { op, .. } = *condition {
+                    assert!(matches!(op, crate::ast::BinaryOp::Ne));
+                } else {
+                    panic!("Expected binary comparison");
+                }
+                // Then branch should be panic call
+                if let Expr::Call { callee, .. } = *then_branch {
+                    if let Expr::Identifier(name) = *callee {
+                        assert_eq!(name, "panic");
+                    } else {
+                        panic!("Expected panic identifier");
+                    }
+                } else {
+                    panic!("Expected call expression");
+                }
+            } else {
+                panic!("Expected if expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_assert_ne_macro() {
+        let macro_impl = AssertNeMacro;
+        let ctx = MacroContext::new();
+
+        let input = MacroInput::expr_list(vec![
+            Expr::Literal(Literal::Int(1)),
+            Expr::Literal(Literal::Int(2)),
+        ]);
+
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::If { condition, .. } = *expr {
+                // Condition should be left == right
+                if let Expr::Binary { op, .. } = *condition {
+                    assert!(matches!(op, crate::ast::BinaryOp::Eq));
+                } else {
+                    panic!("Expected binary comparison");
+                }
+            } else {
+                panic!("Expected if expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_format_macro() {
+        let macro_impl = FormatMacro;
+        let ctx = MacroContext::new();
+
+        // Test with no placeholders
+        let input = MacroInput::expr(Expr::Literal(Literal::String("hello".to_string())));
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::Literal(Literal::String(s)) = *expr {
+                assert_eq!(s, "hello");
+            } else {
+                panic!("Expected string literal");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+
+        // Test with placeholder
+        let input = MacroInput::expr_list(vec![
+            Expr::Literal(Literal::String("Hello, {}!".to_string())),
+            Expr::Identifier("name".to_string()),
+        ]);
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::Call { callee, args } = *expr {
+                if let Expr::Identifier(name) = *callee {
+                    assert_eq!(name, "concat");
+                    assert_eq!(args.len(), 3); // "Hello, ", name.to_string(), "!"
+                } else {
+                    panic!("Expected concat identifier");
+                }
+            } else {
+                panic!("Expected call expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_format_macro_placeholder_mismatch() {
+        let macro_impl = FormatMacro;
+        let ctx = MacroContext::new();
+
+        // Too few arguments
+        let input = MacroInput::expr_list(vec![
+            Expr::Literal(Literal::String("Hello, {} and {}!".to_string())),
+            Expr::Identifier("name".to_string()),
+        ]);
+        let result = macro_impl.expand(input, &ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dbg_macro() {
+        let macro_impl = DbgMacro;
+        let ctx = MacroContext::with_location(Some("test.dol".to_string()), 10, 5);
+
+        let input = MacroInput::expr(Expr::Identifier("x".to_string()));
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::Block {
+                statements,
+                final_expr,
+            } = *expr
+            {
+                assert_eq!(statements.len(), 2); // let + eprintln
+                assert!(final_expr.is_some()); // returns __dbg_tmp
+            } else {
+                panic!("Expected block expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_compile_error_macro() {
+        let macro_impl = CompileErrorMacro;
+        let ctx = MacroContext::new();
+
+        let input = MacroInput::expr(Expr::Literal(Literal::String(
+            "intentional error".to_string(),
+        )));
+        let result = macro_impl.expand(input, &ctx);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("intentional error"));
+    }
+
+    #[test]
+    fn test_vec_macro() {
+        let macro_impl = VecMacro;
+        let ctx = MacroContext::new();
+
+        // Test with elements
+        let input = MacroInput::expr_list(vec![
+            Expr::Literal(Literal::Int(1)),
+            Expr::Literal(Literal::Int(2)),
+            Expr::Literal(Literal::Int(3)),
+        ]);
+
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::Call { callee, args } = *expr {
+                // Should be Vec.from(...)
+                if let Expr::Member { object, field } = *callee {
+                    if let Expr::Identifier(name) = *object {
+                        assert_eq!(name, "Vec");
+                        assert_eq!(field, "from");
+                    } else {
+                        panic!("Expected Vec identifier");
+                    }
+                } else {
+                    panic!("Expected member expression");
+                }
+                // Should have one argument (the array)
+                assert_eq!(args.len(), 1);
+            } else {
+                panic!("Expected call expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_vec_macro_empty() {
+        let macro_impl = VecMacro;
+        let ctx = MacroContext::new();
+
+        let input = MacroInput::empty();
+        let output = macro_impl.expand(input, &ctx).unwrap();
+
+        if let MacroOutput::Expr(expr) = output {
+            if let Expr::Call { args, .. } = *expr {
+                // Inner array call should have no elements
+                if let Expr::Call { args: inner_args, .. } = &args[0] {
+                    assert!(inner_args.is_empty());
+                } else {
+                    panic!("Expected inner call");
+                }
+            } else {
+                panic!("Expected call expression");
+            }
+        } else {
+            panic!("Expected expression output");
+        }
+    }
+
+    #[test]
+    fn test_registry_includes_new_macros() {
+        let builtins = BuiltinMacros::new();
+
+        // Test new macros are registered
+        assert!(builtins.get("assert").is_some());
+        assert!(builtins.get("assert_eq").is_some());
+        assert!(builtins.get("assert_ne").is_some());
+        assert!(builtins.get("format").is_some());
+        assert!(builtins.get("dbg").is_some());
+        assert!(builtins.get("compile_error").is_some());
+        assert!(builtins.get("vec").is_some());
+
+        // Should now have 20 macros (13 original + 7 new)
+        assert_eq!(builtins.len(), 20);
     }
 }
