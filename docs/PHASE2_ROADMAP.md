@@ -1,7 +1,7 @@
 # Phase 2: Tooling Implementation
 
 ## Objective
-Implement the three CLI tools that make Metal DOL usable for developers.
+Implement the three CLI tools that make DOL usable for developers.
 
 ## Prerequisites (✅ Complete from Phase 1)
 - 141 tests passing

@@ -2,7 +2,7 @@
 
 ## What Are Genes?
 
-In Metal DOL, a **gene** is the atomic unit of your ontology. Genes represent fundamental properties or capabilities that cannot be decomposed further.
+In DOL, a **gene** is the atomic unit of your ontology. Genes represent fundamental properties or capabilities that cannot be decomposed further.
 
 Think of genes as the elementary particles of your domain:
 - A user **exists**

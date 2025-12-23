@@ -1,4 +1,4 @@
-# Metal DOL Language Specification
+# DOL Language Specification
 
 **Version**: 0.0.1
 **Status**: Draft
@@ -6,7 +6,7 @@
 
 ## 1. Introduction
 
-Metal DOL (Design Ontology Language) is a declarative specification language that serves as the source of truth for ontology-first software development. In the DOL-first paradigm, design contracts are written before tests, and tests are written before code.
+DOL (Design Ontology Language) is a declarative specification language that serves as the source of truth for ontology-first software development. In the DOL-first paradigm, design contracts are written before tests, and tests are written before code.
 
 ```
 Traditional:  Code → Tests → Documentation

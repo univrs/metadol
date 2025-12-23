@@ -1,4 +1,4 @@
-# Meta DOL 2.0
+# DOL 2.0
 
 [![Build Status](https://github.com/univrs/metadol/workflows/CI/badge.svg)](https://github.com/univrs/metadol/actions)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Meta DOL (Design Ontology Language) is a production-ready DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, Meta DOL lets you declare your domain's fundamental structure, behaviors, and constraints explicitly. The toolchain then validates, type-checks, and compiles to multiple targets including Rust, TypeScript, WebAssembly, and JSON Schema.
+DOL (Design Ontology Language) is a production-ready DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, DOL lets you declare your domain's fundamental structure, behaviors, and constraints explicitly. The toolchain then validates, type-checks, and compiles to multiple targets including Rust, TypeScript, WebAssembly, and JSON Schema.
 
 ### What Makes DOL 2.0 Different?
 
@@ -646,7 +646,7 @@ at your option.
 
 ## Acknowledgments
 
-Meta DOL is part of the [Univrs](https://github.com/univrs) ecosystem, building the foundation for VUDO OS — a distributed, AI-native operating system where systems describe their ontological nature before their functionality.
+DOL is part of the [Univrs](https://github.com/univrs) ecosystem, building the foundation for VUDO OS — a distributed, AI-native operating system where systems describe their ontological nature before their functionality.
 
 ---
 

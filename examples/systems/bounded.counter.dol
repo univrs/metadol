@@ -1,4 +1,4 @@
-system bounded_counter @ 0.1.0 {
+system bounded.counter @0.1.0 {
   requires counter.state >= 0.0.1
   requires counter.countable >= 0.0.1
   requires counter.bounds_valid >= 0.0.1
@@ -8,7 +8,7 @@ system bounded_counter @ 0.1.0 {
 }
 
 exegesis {
-  The bounded_counter system composes genes, traits, and constraints
+  The bounded.counter system composes genes, traits, and constraints
   into a complete, versioned component.
 
   Composition:

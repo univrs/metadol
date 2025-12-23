@@ -1,8 +1,8 @@
-# Tutorial 1: Getting Started with Metal DOL
+# Tutorial 1: Getting Started with DOL
 
-## Welcome to Metal DOL
+## Welcome to DOL
 
-Metal DOL is a Domain-Specific Language (DSL) for **ontology-first development**. Instead of writing code and hoping it matches your mental model, you define your domain's ontology first, then generate code that perfectly aligns with it.
+DOL is a Domain-Specific Language (DSL) for **ontology-first development**. Instead of writing code and hoping it matches your mental model, you define your domain's ontology first, then generate code that perfectly aligns with it.
 
 ### What is the DOL-First Paradigm?
 

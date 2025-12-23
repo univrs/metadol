@@ -2,7 +2,7 @@
 
 ## Introduction to DOL 2.0
 
-DOL 2.0 extends Metal DOL with functional programming features, pattern matching, advanced control flow, and meta-programming capabilities. These features enable more expressive ontology definitions while maintaining backward compatibility with DOL 1.x.
+DOL 2.0 extends DOL with functional programming features, pattern matching, advanced control flow, and meta-programming capabilities. These features enable more expressive ontology definitions while maintaining backward compatibility with DOL 1.x.
 
 ### What's New in DOL 2.0
 

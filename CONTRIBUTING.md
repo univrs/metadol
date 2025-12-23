@@ -1,6 +1,6 @@
-# Contributing to Metal DOL
+# Contributing to DOL
 
-Thank you for your interest in contributing to Metal DOL! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to DOL! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -325,4 +325,4 @@ If you have questions about contributing:
 2. Open a new issue for clarification
 3. Reach out to maintainers
 
-Thank you for contributing to Metal DOL!
+Thank you for contributing to DOL!

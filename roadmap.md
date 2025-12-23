@@ -1,8 +1,8 @@
-# Metal DOL Remediation Roadmap
+# DOL Remediation Roadmap
 
 ## Executive Summary
 
-Transform Metal DOL from prototype to production in 4 phases over 8 weeks.
+Transform DOL from prototype to production in 4 phases over 8 weeks.
 Each phase builds on the previous, with clear deliverables and success metrics.
 
 ---

@@ -1,15 +1,15 @@
 #!/bin/bash
-# Metal DOL Remediation - Claude-Flow Bootstrap Script
+# DOL Remediation - Claude-Flow Bootstrap Script
 # This script initializes the project and prepares for multi-agent orchestration
 
 set -e
 
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║        Metal DOL Remediation - Claude-Flow Bootstrap             ║"
+echo "║        DOL Remediation - Claude-Flow Bootstrap             ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 
 # Configuration
-REPO_URL="https://github.com/univrs/metadol.git"
+REPO_URL="https://github.com/univrs/dol.git"
 WORK_DIR="."
 BRANCH="remediation/phase-1"
 
@@ -79,13 +79,13 @@ if [ ! -f "Cargo.toml" ]; then
     log_info "Creating Cargo.toml..."
     cat > Cargo.toml << 'EOF'
 [package]
-name = "metadol"
+name = "dol"
 version = "0.0.1"
 edition = "2021"
 authors = ["Univrs <team@univrs.io>"]
-description = "Metal DOL - Design Ontology Language for ontology-first development"
+description = "DOL - Design Ontology Language for ontology-first development"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/univrs/metadol"
+repository = "https://github.com/univrs/dol"
 keywords = ["dsl", "ontology", "design", "specification", "testing"]
 categories = ["development-tools", "parsing"]
 

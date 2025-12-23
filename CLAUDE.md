@@ -1,12 +1,12 @@
-# Metal DOL Remediation Project
+# DOL Remediation Project
 
 ## Project Overview
 
-This project transforms Metal DOL from an early-stage prototype into a production-ready DSL toolchain for ontology-first development. The remediation addresses 10 critical areas identified in the project analysis.
+This project transforms  DOL from an early-stage prototype into a production-ready DSL toolchain for ontology-first development. The remediation addresses 10 critical areas identified in the project analysis.
 
 ## Repository Context
 
-- **Project**: univrs/metadol
+- **Project**: univrs/dol
 - **Language**: Rust (100%)
 - **Current State**: Prototype with lexer, parser, AST - lacking tests, docs, CI
 - **Target State**: Production-ready with full test coverage, CI/CD, formal grammar
@@ -14,7 +14,7 @@ This project transforms Metal DOL from an early-stage prototype into a productio
 ## Architecture
 
 ```
-metadol/
+univrs-dol/
 ├── src/
 │   ├── lib.rs           # Library entry point, re-exports
 │   ├── lexer.rs         # Tokenizer using logos

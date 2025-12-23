@@ -2,7 +2,7 @@
 
 ## What Are Systems?
 
-**Systems** are the top-level compositions in Metal DOL. They represent complete, deployable units that combine multiple traits into cohesive architectures.
+**Systems** are the top-level compositions in DOL. They represent complete, deployable units that combine multiple traits into cohesive architectures.
 
 The ontological hierarchy:
 - **Genes** = Atomic properties (container.exists)

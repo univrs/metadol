@@ -1,8 +1,8 @@
-(* 
- * Metal DOL Grammar Specification
+(*
+ * DOL Grammar Specification
  * Version: 0.0.1
  * Format: Extended Backus-Naur Form (EBNF)
- * 
+ *
  * This grammar defines the complete syntax of the Metal DOL language.
  * It can be used to implement parsers or generate parser code.
  *)
@@ -12,8 +12,8 @@
 (* ============================================ *)
 
 (* Character classes *)
-letter = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' 
-       | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' 
+letter = 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j'
+       | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't'
        | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
        | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
        | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T'
@@ -40,7 +40,7 @@ version = digit , { digit } , '.' , digit , { digit } , '.' , digit , { digit } 
 
 (* String literals *)
 string_literal = '"' , { string_char } , '"' ;
-string_char = ? any character except '"' or newline ? 
+string_char = ? any character except '"' or newline ?
             | '\"'   (* escaped quote *)
             | '\\'   (* escaped backslash *)
             | '\n'   (* escaped newline *) ;
@@ -120,13 +120,13 @@ exegesis_text = { ? any character except unmatched '}' ? } ;
 (* ============================================ *)
 
 (* Genes are atomic units that cannot be decomposed *)
-gene_declaration = kw_gene , qualified_identifier , delim_lbrace , 
-                   { gene_statement } , 
+gene_declaration = kw_gene , qualified_identifier , delim_lbrace ,
+                   { gene_statement } ,
                    delim_rbrace ;
 
-gene_statement = has_statement 
-               | is_statement 
-               | derives_statement 
+gene_statement = has_statement
+               | is_statement
+               | derives_statement
                | requires_statement ;
 
 (* ============================================ *)
@@ -138,9 +138,9 @@ trait_declaration = kw_trait , qualified_identifier , delim_lbrace ,
                     { trait_statement } ,
                     delim_rbrace ;
 
-trait_statement = uses_statement 
-                | has_statement 
-                | is_statement 
+trait_statement = uses_statement
+                | has_statement
+                | is_statement
                 | emits_statement
                 | quantified_statement ;
 
@@ -153,8 +153,8 @@ constraint_declaration = kw_constraint , qualified_identifier , delim_lbrace ,
                          { constraint_statement } ,
                          delim_rbrace ;
 
-constraint_statement = matches_statement 
-                     | never_statement 
+constraint_statement = matches_statement
+                     | never_statement
                      | has_statement
                      | is_statement ;
 
@@ -163,13 +163,13 @@ constraint_statement = matches_statement
 (* ============================================ *)
 
 (* Systems are top-level compositions with version requirements *)
-system_declaration = kw_system , qualified_identifier , op_at , version , 
+system_declaration = kw_system , qualified_identifier , op_at , version ,
                      delim_lbrace ,
                      { system_statement } ,
                      delim_rbrace ;
 
-system_statement = requires_clause 
-                 | has_statement 
+system_statement = requires_clause
+                 | has_statement
                  | is_statement
                  | quantified_statement ;
 
@@ -181,15 +181,15 @@ version_constraint = ( op_ge | op_gt | op_eq ) , version ;
 (* ============================================ *)
 
 (* Evolutions track changes between versions *)
-evolution_declaration = kw_evolves , qualified_identifier , 
+evolution_declaration = kw_evolves , qualified_identifier ,
                         op_at , version , op_gt , version ,
                         delim_lbrace ,
                         { evolution_statement } ,
                         delim_rbrace ;
 
-evolution_statement = adds_statement 
-                    | deprecates_statement 
-                    | removes_statement 
+evolution_statement = adds_statement
+                    | deprecates_statement
+                    | removes_statement
                     | because_statement ;
 
 adds_statement = kw_adds , ( has_statement | is_statement ) ;
@@ -263,10 +263,10 @@ then_clause = kw_then , phrase ;
 (* 14. Precedence and Associativity             *)
 (* ============================================ *)
 
-(* 
+(*
  * DOL is a declarative language without traditional expression operators.
  * Parsing is deterministic based on keyword recognition.
- * 
+ *
  * Token priority (for disambiguation):
  * 1. Keywords have priority over identifiers
  * 2. Qualified identifiers are parsed greedily (longest match)
@@ -279,13 +279,13 @@ then_clause = kw_then , phrase ;
 
 (*
  * Example 1: Gene Declaration
- * 
+ *
  * gene container.exists {
  *   container has identity
  *   container has state
  *   container has boundaries
  * }
- * 
+ *
  * exegesis {
  *   A container is the fundamental unit of workload isolation.
  * }
@@ -293,16 +293,16 @@ then_clause = kw_then , phrase ;
 
 (*
  * Example 2: Trait with Uses
- * 
+ *
  * trait container.lifecycle {
  *   uses container.exists
  *   uses identity.cryptographic
- *   
+ *
  *   container is created
  *   container is started
  *   each transition emits event
  * }
- * 
+ *
  * exegesis {
  *   The container lifecycle defines state transitions.
  * }
@@ -310,13 +310,13 @@ then_clause = kw_then , phrase ;
 
 (*
  * Example 3: Evolution
- * 
+ *
  * evolves container.lifecycle @ 0.0.2 > 0.0.1 {
  *   adds container is paused
  *   adds container is resumed
  *   because "workload migration requires state preservation"
  * }
- * 
+ *
  * exegesis {
  *   Version 0.0.2 adds pause and resume capabilities.
  * }

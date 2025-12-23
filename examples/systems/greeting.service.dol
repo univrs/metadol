@@ -1,4 +1,4 @@
-system greeting_service @ 0.1.0 {
+system greeting.service @0.1.0 {
   requires entity.greetable >= 0.0.1
   requires greeting.protocol >= 0.0.1
 
