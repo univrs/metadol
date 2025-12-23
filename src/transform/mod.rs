@@ -12,10 +12,12 @@
 //! - **MutVisitor**: Mutable transformation of AST nodes
 //! - **Fold**: Expression-level transformation
 
+pub mod desugar_idiom;
 pub mod fold;
 pub mod passes;
 pub mod visitor;
 
+pub use desugar_idiom::IdiomDesugar;
 pub use fold::Fold;
 pub use passes::{ConstantFolding, DeadCodeElimination};
 pub use visitor::{MutVisitor, Visitor};

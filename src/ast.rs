@@ -643,6 +643,10 @@ pub enum BinaryOp {
     Bind,
     /// Member access `.`
     Member,
+    /// Functor map `<$>` - maps a function over a functor
+    Map,
+    /// Applicative apply `<*>` - applies a wrapped function to a wrapped value
+    Ap,
 }
 
 /// Unary operator for expressions.

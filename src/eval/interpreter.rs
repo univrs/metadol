@@ -265,6 +265,22 @@ impl Interpreter {
                 // This shouldn't happen as Member has its own Expr variant
                 Err(EvalError::new("member access should use Expr::Member"))
             }
+
+            // Functor map <$>
+            BinaryOp::Map => {
+                // Map applies a function to a value inside a functor
+                // For now, treat as function application (simplified)
+                // Full functor support would require type class instances
+                self.eval_apply(&left_val, &right_val, env)
+            }
+
+            // Applicative apply <*>
+            BinaryOp::Ap => {
+                // Ap applies a wrapped function to a wrapped value
+                // For now, treat as function application (simplified)
+                // Full applicative support would require type class instances
+                self.eval_apply(&left_val, &right_val, env)
+            }
         }
     }
 

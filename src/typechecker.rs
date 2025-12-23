@@ -727,6 +727,22 @@ impl TypeChecker {
                 // Member access returns unknown (structural typing TBD)
                 Ok(Type::Unknown)
             }
+
+            // Functor map operator <$>
+            BinaryOp::Map => {
+                // Map applies a function to a value inside a functor
+                // Type: (a -> b) -> f a -> f b
+                // For now, return Unknown (full functor support TBD)
+                Ok(Type::Unknown)
+            }
+
+            // Applicative apply operator <*>
+            BinaryOp::Ap => {
+                // Ap applies a wrapped function to a wrapped value
+                // Type: f (a -> b) -> f a -> f b
+                // For now, return Unknown (full applicative support TBD)
+                Ok(Type::Unknown)
+            }
         }
     }
 

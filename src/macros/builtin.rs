@@ -1318,6 +1318,8 @@ fn stringify_expr(expr: &Expr) -> String {
                 crate::ast::BinaryOp::Apply => "@",
                 crate::ast::BinaryOp::Bind => ":=",
                 crate::ast::BinaryOp::Member => ".",
+                crate::ast::BinaryOp::Map => "<$>",
+                crate::ast::BinaryOp::Ap => "<*>",
             };
             format!(
                 "({} {} {})",
