@@ -116,10 +116,7 @@ fn builtin_keys(args: &[Value]) -> Result<Value, EvalError> {
 
     match &args[0] {
         Value::Record(fields) => {
-            let keys: Vec<Value> = fields
-                .keys()
-                .map(|k| Value::String(k.clone()))
-                .collect();
+            let keys: Vec<Value> = fields.keys().map(|k| Value::String(k.clone())).collect();
             Ok(Value::Array(keys))
         }
         _ => Err(EvalError::type_error("Record", args[0].type_name())),

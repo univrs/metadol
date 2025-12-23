@@ -27,6 +27,7 @@
 use crate::ast::*;
 use crate::error::ParseError;
 use crate::lexer::{Lexer, Token, TokenKind};
+use crate::macros::{AttributeArg, MacroAttribute, MacroInvocation};
 use crate::pratt::{infix_binding_power, prefix_binding_power};
 
 /// The parser for Metal DOL source text.
@@ -818,6 +819,9 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Reflect(Box::new(type_expr)))
             }
 
+            // Macro invocation: #macro_name(args)
+            TokenKind::Macro => self.parse_macro_invocation_expr(),
+
             _ => Err(ParseError::UnexpectedToken {
                 expected: "expression".to_string(),
                 found: format!("'{}'", self.current.lexeme),
@@ -1398,6 +1402,152 @@ impl<'a> Parser<'a> {
             body,
             span,
         })
+    }
+
+    // === Macro Parsing ===
+
+    /// Parses a macro invocation expression: #macro_name(args)
+    fn parse_macro_invocation_expr(&mut self) -> Result<Expr, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Macro)?; // consume #
+
+        // Get macro name
+        let name = self.expect_identifier()?;
+
+        // Parse optional arguments
+        let args = if self.current.kind == TokenKind::LeftParen {
+            self.advance();
+            let mut args = Vec::new();
+            while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof
+            {
+                args.push(self.parse_expr(0)?);
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect(TokenKind::RightParen)?;
+            args
+        } else {
+            Vec::new()
+        };
+
+        let _span = start_span.merge(&self.previous.span);
+
+        // Return as a special MacroCall expression
+        // We encode this as a Call with a special identifier prefix
+        Ok(Expr::Call {
+            callee: Box::new(Expr::Identifier(format!("#{}", name))),
+            args,
+        })
+    }
+
+    /// Parses a macro invocation and returns the MacroInvocation AST node.
+    pub fn parse_macro_invocation(&mut self) -> Result<MacroInvocation, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Macro)?; // consume #
+
+        // Get macro name
+        let name = self.expect_identifier()?;
+
+        // Parse optional arguments
+        let args = if self.current.kind == TokenKind::LeftParen {
+            self.advance();
+            let mut args = Vec::new();
+            while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof
+            {
+                args.push(self.parse_expr(0)?);
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect(TokenKind::RightParen)?;
+            args
+        } else {
+            Vec::new()
+        };
+
+        let span = start_span.merge(&self.previous.span);
+
+        Ok(MacroInvocation::new(name, args, span))
+    }
+
+    /// Parses an attribute macro: #[macro_name(args)]
+    pub fn parse_macro_attribute(&mut self) -> Result<MacroAttribute, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Macro)?; // consume #
+        self.expect(TokenKind::LeftBracket)?; // consume [
+
+        // Get macro name
+        let name = self.expect_identifier()?;
+
+        // Parse optional arguments
+        let args = if self.current.kind == TokenKind::LeftParen {
+            self.advance();
+            let mut args = Vec::new();
+            while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof
+            {
+                args.push(self.parse_attribute_arg()?);
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect(TokenKind::RightParen)?;
+            args
+        } else {
+            Vec::new()
+        };
+
+        self.expect(TokenKind::RightBracket)?; // consume ]
+
+        let span = start_span.merge(&self.previous.span);
+
+        Ok(MacroAttribute::new(name, args, span))
+    }
+
+    /// Parses an attribute argument.
+    fn parse_attribute_arg(&mut self) -> Result<AttributeArg, ParseError> {
+        let name = self.expect_identifier()?;
+
+        // Check for key = value or nested attribute
+        if self.current.kind == TokenKind::Equal {
+            self.advance();
+            let value = self.parse_expr(0)?;
+            Ok(AttributeArg::KeyValue { key: name, value })
+        } else if self.current.kind == TokenKind::LeftParen {
+            // Nested attribute
+            self.advance();
+            let mut args = Vec::new();
+            while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof
+            {
+                args.push(self.parse_attribute_arg()?);
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect(TokenKind::RightParen)?;
+            Ok(AttributeArg::Nested { name, args })
+        } else {
+            // Simple identifier
+            Ok(AttributeArg::Ident(name))
+        }
+    }
+
+    /// Checks if we're at the start of an attribute macro.
+    pub fn is_at_attribute(&self) -> bool {
+        // Check for #[ pattern
+        if self.current.kind != TokenKind::Macro {
+            return false;
+        }
+        // Would need lookahead to check for [
+        true // Simplified check
     }
 
     // === Helper Methods ===

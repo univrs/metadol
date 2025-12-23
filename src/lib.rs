@@ -53,6 +53,7 @@
 //! - [`validator`]: Semantic validation rules
 //! - [`typechecker`]: DOL 2.0 type inference and checking
 //! - [`eval`]: Expression evaluation for DOL 2.0
+//! - [`macros`]: Macro system for compile-time metaprogramming
 //! - [`codegen`]: Code generation from DOL declarations
 
 #![doc(html_root_url = "https://docs.rs/metadol/0.0.1")]
@@ -64,6 +65,7 @@ pub mod codegen;
 pub mod error;
 pub mod eval;
 pub mod lexer;
+pub mod macros;
 pub mod parser;
 pub mod pratt;
 pub mod typechecker;
@@ -86,6 +88,12 @@ pub use validator::{validate, ValidationResult};
 pub use codegen::{
     Codegen, CodegenOptions, JsonSchemaCodegen, RustCodegen, TypeMapper, TypeScriptCodegen,
     Visibility,
+};
+
+// Macro system re-exports
+pub use macros::{
+    AttributeArg, BuiltinMacros, Macro, MacroAttribute, MacroContext, MacroError, MacroExpander,
+    MacroInput, MacroInvocation, MacroOutput,
 };
 
 /// Parse a DOL source string into an AST.

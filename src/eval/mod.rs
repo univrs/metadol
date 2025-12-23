@@ -15,9 +15,9 @@
 //! let result = interpreter.eval(&expr).unwrap();
 //! ```
 
-pub mod value;
-pub mod interpreter;
 pub mod builtins;
+pub mod interpreter;
+pub mod value;
 
-pub use value::{Value, Environment, EvalError};
 pub use interpreter::Interpreter;
+pub use value::{Environment, EvalError, Value};

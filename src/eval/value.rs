@@ -194,9 +194,9 @@ impl Environment {
 
     /// Looks up a variable's value, searching parent scopes if needed.
     pub fn lookup(&self, name: &str) -> Option<&Value> {
-        self.bindings.get(name).or_else(|| {
-            self.parent.as_ref().and_then(|p| p.lookup(name))
-        })
+        self.bindings
+            .get(name)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.lookup(name)))
     }
 
     /// Updates a variable's value in the scope where it's defined.
@@ -235,7 +235,10 @@ impl EvalError {
 
     /// Creates a type error.
     pub fn type_error(expected: &str, actual: &str) -> Self {
-        Self::new(format!("type error: expected {}, found {}", expected, actual))
+        Self::new(format!(
+            "type error: expected {}, found {}",
+            expected, actual
+        ))
     }
 
     /// Creates an undefined variable error.

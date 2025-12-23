@@ -422,8 +422,7 @@ fn test_quote_pipeline() {
     match expr {
         Expr::Quote(inner) => match *inner {
             Expr::Binary {
-                op: BinaryOp::Pipe,
-                ..
+                op: BinaryOp::Pipe, ..
             } => {}
             _ => panic!("Expected pipe expression inside quote"),
         },

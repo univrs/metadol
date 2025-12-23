@@ -76,7 +76,8 @@ impl Interpreter {
                 return_type: _,
             } => {
                 // Capture current environment for closure
-                let param_names: Vec<String> = params.iter().map(|(name, _)| name.clone()).collect();
+                let param_names: Vec<String> =
+                    params.iter().map(|(name, _)| name.clone()).collect();
                 Ok(Value::Function {
                     params: param_names,
                     body: body.clone(),
@@ -257,9 +258,7 @@ impl Interpreter {
                 }
             }
             UnaryOp::Quote => Ok(Value::Quoted(Box::new(operand.clone()))),
-            UnaryOp::Reflect => Err(EvalError::new(
-                "reflect operator requires type expression",
-            )),
+            UnaryOp::Reflect => Err(EvalError::new("reflect operator requires type expression")),
         }
     }
 
@@ -340,7 +339,10 @@ impl Interpreter {
                     .collect();
                 (name.clone(), "generic".to_string(), arg_names)
             }
-            TypeExpr::Function { params, return_type: _ } => (
+            TypeExpr::Function {
+                params,
+                return_type: _,
+            } => (
                 "Function".to_string(),
                 "function".to_string(),
                 params
