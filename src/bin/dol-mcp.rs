@@ -51,7 +51,6 @@ fn print_usage() {
     eprintln!("  typecheck          Type check DOL expression");
     eprintln!("  compile_rust       Compile to Rust");
     eprintln!("  compile_typescript Compile to TypeScript");
-    eprintln!("  compile_jsonschema Compile to JSON Schema");
     eprintln!("  compile_wasm       Compile to WebAssembly");
     eprintln!("  eval               Evaluate DOL expression");
     eprintln!("  reflect            Get type information");
@@ -180,27 +179,29 @@ fn run_tool(server: McpServer, tool_name: &str, args: &[String]) {
 
     let needs_expr = matches!(tool, DolTool::TypeCheck | DolTool::Eval);
 
+    // If source/expr not provided as arg, try reading from stdin
     if !values.contains_key("source") && needs_source {
-        if atty::isnt(atty::Stream::Stdin) {
-            // Read from stdin if it's piped
-            let mut source = String::new();
-            io::stdin()
-                .read_to_string(&mut source)
-                .expect("Failed to read from stdin");
-            values.insert("source".to_string(), serde_json::Value::String(source));
-        } else {
-            eprintln!("Error: 'source' parameter is required");
-            eprintln!("Provide it as: source=\"...\" or pipe input via stdin");
+        eprintln!("Reading source from stdin...");
+        let mut source = String::new();
+        if let Err(e) = io::stdin().read_to_string(&mut source) {
+            eprintln!("Error reading from stdin: {}", e);
             std::process::exit(1);
+        }
+        if !source.is_empty() {
+            values.insert("source".to_string(), serde_json::Value::String(source));
         }
     }
 
-    if !values.contains_key("expr") && needs_expr && atty::isnt(atty::Stream::Stdin) {
+    if !values.contains_key("expr") && needs_expr {
+        eprintln!("Reading expression from stdin...");
         let mut expr = String::new();
-        io::stdin()
-            .read_to_string(&mut expr)
-            .expect("Failed to read from stdin");
-        values.insert("expr".to_string(), serde_json::Value::String(expr));
+        if let Err(e) = io::stdin().read_to_string(&mut expr) {
+            eprintln!("Error reading from stdin: {}", e);
+            std::process::exit(1);
+        }
+        if !expr.is_empty() {
+            values.insert("expr".to_string(), serde_json::Value::String(expr));
+        }
     }
 
     let tool_args = ToolArgs::new(values);

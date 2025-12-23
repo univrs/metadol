@@ -5,15 +5,15 @@
 
 use super::DolTool;
 use crate::{
-    ast::Expr,
     codegen::{RustCodegen, TypeScriptCodegen},
-    eval::Interpreter,
     macros::BuiltinMacros,
     parse_file,
     reflect::TypeRegistry,
-    typechecker::TypeChecker,
 };
 use std::collections::HashMap;
+
+#[cfg(feature = "serde")]
+use crate::{ast::Expr, eval::Interpreter, typechecker::TypeChecker};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -109,6 +109,7 @@ impl McpServer {
         }
         #[cfg(not(feature = "serde"))]
         {
+            let _ = args;
             Err("Type checking requires the 'serde' feature".to_string())
         }
     }
@@ -156,6 +157,7 @@ impl McpServer {
         }
         #[cfg(not(feature = "serde"))]
         {
+            let _ = args;
             Err("Evaluation requires the 'serde' feature".to_string())
         }
     }
@@ -317,10 +319,17 @@ impl Default for McpServer {
 /// Tool arguments wrapper.
 ///
 /// Wraps a HashMap of arguments and provides typed access methods.
+#[cfg(feature = "serde")]
 pub struct ToolArgs {
     args: HashMap<String, serde_json::Value>,
 }
 
+#[cfg(not(feature = "serde"))]
+pub struct ToolArgs {
+    args: HashMap<String, String>,
+}
+
+#[cfg(feature = "serde")]
 impl ToolArgs {
     /// Creates a new ToolArgs from a HashMap.
     pub fn new(args: HashMap<String, serde_json::Value>) -> Self {
@@ -349,6 +358,29 @@ impl ToolArgs {
     /// Gets the raw JSON value for an argument.
     pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
         self.args.get(key)
+    }
+}
+
+#[cfg(not(feature = "serde"))]
+impl ToolArgs {
+    /// Creates a new ToolArgs from a HashMap.
+    pub fn new(args: HashMap<String, String>) -> Self {
+        Self { args }
+    }
+
+    /// Gets a string argument by name.
+    ///
+    /// Returns an error if the argument is missing or not a string.
+    pub fn get_string(&self, key: &str) -> Result<String, String> {
+        self.args
+            .get(key)
+            .cloned()
+            .ok_or_else(|| format!("Missing or invalid argument: {}", key))
+    }
+
+    /// Gets an optional string argument by name.
+    pub fn get_optional_string(&self, key: &str) -> Option<String> {
+        self.args.get(key).cloned()
     }
 }
 
@@ -461,12 +493,13 @@ mod tests {
         args_map.insert(
             "source".to_string(),
             serde_json::Value::String(
-                r#"gene test.example {
-  test has id
+                r#"gene container.exists {
+  container has identity
+  container has state
 }
 
 exegesis {
-  Test gene.
+  A container is the fundamental unit of workload isolation.
 }"#
                 .to_string(),
             ),

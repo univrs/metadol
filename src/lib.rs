@@ -56,7 +56,7 @@
 //! - [`macros`]: Macro system for compile-time metaprogramming
 //! - [`transform`]: AST transformation framework with passes
 //! - [`codegen`]: Code generation from DOL declarations
-//! - [`mcp`]: Model Context Protocol server
+//! - [`mcp`]: Model Context Protocol server (requires `serde` feature)
 //! - [`mlir`]: MLIR code generation backend (requires `mlir` feature)
 //! - [`wasm`]: WebAssembly compilation and runtime (requires `wasm` feature)
 
@@ -70,13 +70,16 @@ pub mod error;
 pub mod eval;
 pub mod lexer;
 pub mod macros;
-pub mod mcp;
 pub mod parser;
 pub mod pratt;
 pub mod reflect;
 pub mod transform;
 pub mod typechecker;
 pub mod validator;
+
+// MCP server (requires serde feature)
+#[cfg(feature = "serde")]
+pub mod mcp;
 
 // MLIR backend (requires mlir feature)
 pub mod mlir;

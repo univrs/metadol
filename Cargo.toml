@@ -49,7 +49,7 @@ required-features = ["cli"]
 
 [features]
 default = []
-cli = ["dep:clap", "dep:anyhow", "dep:colored", "dep:serde", "dep:serde_json"]
+cli = ["dep:clap", "dep:anyhow", "dep:colored", "serde"]
 serde = ["dep:serde", "dep:serde_json"]
 mlir = ["melior"]
 wasm = ["mlir", "wasmtime"]

@@ -109,7 +109,7 @@ impl MlirError {
     /// use metadol::mlir::MlirError;
     /// use metadol::ast::Span;
     ///
-    /// let span = Span { start: 10, end: 20 };
+    /// let span = Span { start: 10, end: 20, line: 1, column: 10 };
     /// let err = MlirError::with_span("type mismatch", span);
     /// assert_eq!(err.message, "type mismatch");
     /// assert_eq!(err.span, Some(span));

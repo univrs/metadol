@@ -87,7 +87,7 @@ impl DolTool {
     }
 
     /// Parse a tool name from a string.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_name(s: &str) -> Option<Self> {
         match s {
             "parse" => Some(DolTool::Parse),
             "typecheck" => Some(DolTool::TypeCheck),
