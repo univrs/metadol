@@ -113,7 +113,7 @@ fn handle_request(server: &McpServer, request: serde_json::Value) -> serde_json:
                 .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
 
             // Parse tool name into DolTool enum
-            if let Some(tool) = DolTool::from_str(tool_name) {
+            if let Some(tool) = DolTool::from_name(tool_name) {
                 let args_map: HashMap<String, serde_json::Value> =
                     serde_json::from_value(args).unwrap_or_default();
                 let tool_args = ToolArgs::new(args_map);
@@ -146,7 +146,7 @@ fn print_manifest(server: McpServer) {
 
 fn run_tool(server: McpServer, tool_name: &str, args: &[String]) {
     // Parse tool name into DolTool enum
-    let tool = match DolTool::from_str(tool_name) {
+    let tool = match DolTool::from_name(tool_name) {
         Some(t) => t,
         None => {
             eprintln!("Error: Unknown tool '{}'", tool_name);
