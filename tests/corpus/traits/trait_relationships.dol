@@ -1,80 +1,30 @@
 module tests.trait_relationships @ 1.0.0
 
-// Basic trait
+/// A simple gene for testing
+pub gene SimpleValue {
+    has value: String
+    has count: Int64 = 0
+
+    fun get_value() -> String {
+        return this.value
+    }
+}
+
+/// Trait for display functionality
 pub trait Displayable {
+    /// Return string representation
     is display() -> String
 }
 
-// Trait extending another
-pub trait Debuggable {
-    requires Displayable
-
-    is debug() -> String {
-        return "[DEBUG] " + this.display()
-    }
-}
-
-// Trait with multiple requirements
-pub trait Serializable {
-    requires Displayable
-    requires Comparable
-
-    is serialize() -> List<UInt8>
-    is deserialize(data: List<UInt8>) -> Self
-}
-
-// Trait with associated types (if supported)
-pub trait Container {
-    type Item
-
-    is get(index: UInt64) -> Option<Item>
-    is set(index: UInt64, value: Item) -> Self
-    is length() -> UInt64
-}
-
-// Trait with default implementations
-pub trait Comparable {
-    is compare(other: Self) -> Int64
-
-    provides less_than(other: Self) -> Bool {
-        return this.compare(other) < 0
-    }
-
-    provides greater_than(other: Self) -> Bool {
-        return this.compare(other) > 0
-    }
-
-    provides equals(other: Self) -> Bool {
-        return this.compare(other) == 0
-    }
-}
-
-// Trait with laws
-pub trait Monoid {
-    requires empty: Self
-    requires combine(a: Self, b: Self) -> Self
-
-    law left_identity {
-        forall x: Self. combine(empty, x) == x
-    }
-
-    law right_identity {
-        forall x: Self. combine(x, empty) == x
-    }
-
-    law associativity {
-        forall a: Self. forall b: Self. forall c: Self.
-            combine(combine(a, b), c) == combine(a, combine(b, c))
-    }
-}
-
-// Gene implementing multiple traits
+/// Gene that wraps strings
 pub gene StringWrapper {
     has value: String
+
+    fun to_string() -> String {
+        return this.value
+    }
 }
 
-// Note: actual impl syntax would go here if supported
-
 exegesis {
-    Tests for various trait relationships and compositions.
+    Tests for trait definitions and relationships.
 }
