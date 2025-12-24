@@ -1,0 +1,61 @@
+module tests.complex_constraints @ 1.0.0
+
+pub gene OrderedList {
+    has items: List<Int64>
+
+    // Simple constraint
+    constraint non_empty {
+        this.items.length() > 0
+    }
+
+    // Forall constraint
+    constraint sorted {
+        forall i: UInt64.
+            i < this.items.length() - 1 implies
+                this.items[i] <= this.items[i + 1]
+    }
+
+    // Exists constraint
+    constraint has_positive {
+        exists x: Int64. x in this.items && x > 0
+    }
+
+    // Nested quantifiers
+    constraint unique {
+        forall i: UInt64. forall j: UInt64.
+            i != j implies this.items[i] != this.items[j]
+    }
+
+    // Complex implication chain
+    constraint bounded {
+        this.items.length() > 0 implies (
+            forall x: Int64. x in this.items implies (
+                x >= this.min() && x <= this.max()
+            )
+        )
+    }
+}
+
+pub trait Ordered {
+    is compare(other: Self) -> Int64
+
+    law reflexive {
+        forall x: Self. x.compare(x) == 0
+    }
+
+    law antisymmetric {
+        forall x: Self. forall y: Self.
+            x.compare(y) <= 0 && y.compare(x) <= 0 implies
+                x.compare(y) == 0
+    }
+
+    law transitive {
+        forall x: Self. forall y: Self. forall z: Self.
+            x.compare(y) <= 0 && y.compare(z) <= 0 implies
+                x.compare(z) <= 0
+    }
+}
+
+exegesis {
+    Tests for complex constraints with quantifiers and implications.
+}
