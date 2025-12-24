@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/univrs/metadol/workflows/CI/badge.svg)](https://github.com/univrs/metadol/actions)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
 [![Rust Version](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-516%20passing-brightgreen.svg)](https://github.com/univrs/metadol/actions)
+[![Tests](https://img.shields.io/badge/tests-631%20passing-brightgreen)](https://github.com/univrs/metadol/actions)
 
 **A declarative DSL for ontology-first development with meta-programming and multi-target compilation**
 
@@ -24,6 +24,8 @@ DOL (Design Ontology Language) is a production-ready DSL toolchain that enables 
 | Limited metaprogramming | **Quote, Eval, Macros, Reflection** |
 
 DOL 2.0 treats ontology as a first-class concern. You define **genes** (atomic types), **traits** (composable behaviors), **constraints** (invariants), **systems** (compositions), and **evolutions** (version tracking). Each declaration includes mandatory **exegesis**—human-readable documentation that bridges formal specification and domain understanding.
+
+**Full documentation available at [https://learn.univrs.io/dol](https://learn.univrs.io/dol)**
 
 ---
 
@@ -163,7 +165,7 @@ cd dol
 # Build the project
 cargo build --release
 
-# Run tests (516 tests)
+# Run tests (631 tests)
 cargo test
 ```
 
@@ -552,7 +554,7 @@ dol/
 │   ├── wasm/               # WASM backend (optional)
 │   ├── mcp/                # MCP server
 │   └── bin/                # CLI binaries
-├── tests/                  # Test suites (516 tests)
+├── tests/                  # Test suites (631 tests)
 ├── examples/               # Example DOL files
 └── docs/                   # Documentation
 ```
@@ -562,7 +564,7 @@ dol/
 ## Testing
 
 ```bash
-# Run all tests (516 tests)
+# Run all tests (631 tests)
 cargo test
 
 # Run specific test suite
@@ -590,7 +592,8 @@ cargo bench
 | Quote Tests | 33 |
 | Reflect Tests | 17 |
 | Doc Tests | 30 |
-| **Total** | **516** |
+| Additional Tests | 115 |
+| **Total** | **631** |
 
 ---
 
@@ -642,6 +645,14 @@ Generate local documentation:
 ```bash
 cargo doc --open
 ```
+
+---
+
+## Links
+
+- **Docs**: [https://learn.univrs.io/dol](https://learn.univrs.io/dol)
+- **Learn**: [https://learn.univrs.io](https://learn.univrs.io)
+- **GitHub**: [https://github.com/univrs/dol](https://github.com/univrs/dol)
 
 ---
 
