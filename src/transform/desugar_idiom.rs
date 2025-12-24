@@ -210,6 +210,31 @@ impl IdiomDesugar {
             Expr::QuasiQuote(inner) => Expr::QuasiQuote(Box::new(self.desugar_expr(*inner))),
             Expr::Eval(inner) => Expr::Eval(Box::new(self.desugar_expr(*inner))),
 
+            // Logic expressions - recursively desugar body
+            Expr::Forall(forall_expr) => {
+                use crate::ast::ForallExpr;
+                Expr::Forall(ForallExpr {
+                    var: forall_expr.var,
+                    type_: forall_expr.type_,
+                    body: Box::new(self.desugar_expr(*forall_expr.body)),
+                    span: forall_expr.span,
+                })
+            }
+            Expr::Exists(exists_expr) => {
+                use crate::ast::ExistsExpr;
+                Expr::Exists(ExistsExpr {
+                    var: exists_expr.var,
+                    type_: exists_expr.type_,
+                    body: Box::new(self.desugar_expr(*exists_expr.body)),
+                    span: exists_expr.span,
+                })
+            }
+            Expr::Implies { left, right, span } => Expr::Implies {
+                left: Box::new(self.desugar_expr(*left)),
+                right: Box::new(self.desugar_expr(*right)),
+                span,
+            },
+
             // Leaf nodes - no transformation needed
             Expr::Literal(_) | Expr::Identifier(_) | Expr::Reflect(_) => expr,
         }

@@ -1295,6 +1295,7 @@ fn stringify_expr(expr: &Expr) -> String {
             Literal::Float(f) => f.to_string(),
             Literal::String(s) => format!("\"{}\"", s),
             Literal::Bool(b) => b.to_string(),
+            Literal::Null => "null".to_string(),
         },
         Expr::Identifier(name) => name.clone(),
         Expr::Binary { left, op, right } => {
@@ -1320,6 +1321,7 @@ fn stringify_expr(expr: &Expr) -> String {
                 crate::ast::BinaryOp::Member => ".",
                 crate::ast::BinaryOp::Map => "<$>",
                 crate::ast::BinaryOp::Ap => "<*>",
+                crate::ast::BinaryOp::Implies => "=>",
             };
             format!(
                 "({} {} {})",
@@ -1384,6 +1386,29 @@ fn stringify_expr(expr: &Expr) -> String {
                 .collect::<Vec<_>>()
                 .join(" ");
             format!("[| {} {} |]", stringify_expr(func), args_str)
+        }
+        Expr::Forall(forall_expr) => {
+            format!(
+                "forall {}: {:?}. {}",
+                forall_expr.var,
+                forall_expr.type_,
+                stringify_expr(&forall_expr.body)
+            )
+        }
+        Expr::Exists(exists_expr) => {
+            format!(
+                "exists {}: {:?}. {}",
+                exists_expr.var,
+                exists_expr.type_,
+                stringify_expr(&exists_expr.body)
+            )
+        }
+        Expr::Implies { left, right, .. } => {
+            format!(
+                "({} => {})",
+                stringify_expr(left),
+                stringify_expr(right)
+            )
         }
     }
 }

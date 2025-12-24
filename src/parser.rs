@@ -73,13 +73,91 @@ impl<'a> Parser<'a> {
     ///
     /// The parsed `Declaration` on success, or a `ParseError` on failure.
     pub fn parse(&mut self) -> Result<Declaration, ParseError> {
+        // Skip module declaration if present
+        self.skip_module_and_uses()?;
+
         let decl = self.parse_declaration()?;
-        self.expect(TokenKind::Eof)?;
+
+        // Allow trailing content (other declarations in the file)
+        // For now, we just return the first declaration
         Ok(decl)
+    }
+
+    /// Skips module declaration and use statements at the start of a file.
+    fn skip_module_and_uses(&mut self) -> Result<(), ParseError> {
+        // Skip module declaration
+        if self.current.kind == TokenKind::Module {
+            self.advance(); // module
+            // Skip path
+            while self.current.kind == TokenKind::Identifier || self.current.kind == TokenKind::Dot {
+                self.advance();
+            }
+            // Skip version
+            if self.current.kind == TokenKind::At {
+                self.advance();
+                if self.current.kind == TokenKind::Version {
+                    self.advance();
+                }
+            }
+        }
+
+        // Skip use declarations
+        while self.current.kind == TokenKind::Use {
+            self.advance(); // use
+            // Skip path (identifiers, ::, ., etc.)
+            while self.current.kind != TokenKind::Eof
+                && self.current.kind != TokenKind::Gene
+                && self.current.kind != TokenKind::Trait
+                && self.current.kind != TokenKind::Constraint
+                && self.current.kind != TokenKind::System
+                && self.current.kind != TokenKind::Evolves
+                && self.current.kind != TokenKind::Pub
+                && self.current.kind != TokenKind::Use
+                && self.current.kind != TokenKind::Module
+            {
+                self.advance();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Skips generic type parameters: <T, U: Bound, V = Default>
+    fn skip_type_params(&mut self) -> Result<(), ParseError> {
+        if self.current.kind != TokenKind::Lt {
+            return Ok(());
+        }
+
+        self.advance(); // consume <
+
+        let mut depth = 1;
+        while depth > 0 && self.current.kind != TokenKind::Eof {
+            match self.current.kind {
+                TokenKind::Lt => depth += 1,
+                TokenKind::Greater => depth -= 1,
+                _ => {}
+            }
+            self.advance();
+        }
+
+        Ok(())
     }
 
     /// Parses a declaration.
     fn parse_declaration(&mut self) -> Result<Declaration, ParseError> {
+        // Skip visibility modifier
+        if self.current.kind == TokenKind::Pub {
+            self.advance();
+            // Skip optional (spirit) or (parent)
+            if self.current.kind == TokenKind::LeftParen {
+                self.advance(); // (
+                self.advance(); // spirit/parent
+                if self.current.kind == TokenKind::RightParen {
+                    self.advance(); // )
+                }
+            }
+        }
+
         match self.current.kind {
             TokenKind::Gene => self.parse_gene(),
             TokenKind::Trait => self.parse_trait(),
@@ -93,19 +171,190 @@ impl<'a> Parser<'a> {
         }
     }
 
+
+    /// Parses an optional visibility modifier.
+    /// Returns Visibility::Private if no modifier is present.
+    #[allow(dead_code)]
+    fn parse_visibility(&mut self) -> Result<Visibility, ParseError> {
+        match self.current.kind {
+            TokenKind::Pub => {
+                self.advance();
+                // Check for pub(spirit) or pub(parent)
+                if self.current.kind == TokenKind::LeftParen {
+                    self.advance();
+                    if self.current.kind == TokenKind::Spirit {
+                        self.advance();
+                        self.expect(TokenKind::RightParen)?;
+                        Ok(Visibility::PubSpirit)
+                    } else if self.current.lexeme == "parent" {
+                        self.advance();
+                        self.expect(TokenKind::RightParen)?;
+                        Ok(Visibility::PubParent)
+                    } else {
+                        Err(ParseError::UnexpectedToken {
+                            expected: "spirit or parent".to_string(),
+                            found: format!("'{}'", self.current.lexeme),
+                            span: self.current.span,
+                        })
+                    }
+                } else {
+                    Ok(Visibility::Public)
+                }
+            }
+            _ => Ok(Visibility::Private),
+        }
+    }
+
+    /// Parses a module declaration: module path.to.module @ version
+    #[allow(dead_code)]
+    fn parse_module_decl(&mut self) -> Result<ModuleDecl, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Module)?;
+
+        // Parse module path (e.g., "univrs.container.lifecycle")
+        let mut path = Vec::new();
+        path.push(self.expect_identifier()?);
+
+        while self.current.kind == TokenKind::Dot {
+            self.advance();
+            path.push(self.expect_identifier()?);
+        }
+
+        // Parse optional version
+        let version = if self.current.kind == TokenKind::At {
+            self.advance();
+            Some(self.parse_version()?)
+        } else {
+            None
+        };
+
+        let span = start_span.merge(&self.previous.span);
+
+        Ok(ModuleDecl {
+            path,
+            version,
+            span,
+        })
+    }
+
+    /// Parses a version: 1.2.3 or 1.2.3-alpha
+    fn parse_version(&mut self) -> Result<Version, ParseError> {
+        let version_str = self.expect_version()?;
+        // Parse the version string into components
+        let mut parts = version_str.splitn(2, '-');
+        let numbers_part = parts.next().unwrap();
+        let suffix = parts.next().map(|s| s.to_string());
+
+        let numbers: Vec<&str> = numbers_part.split('.').collect();
+        if numbers.len() != 3 {
+            return Err(ParseError::InvalidStatement {
+                message: "version must have three parts".to_string(),
+                span: self.previous.span,
+            });
+        }
+
+        Ok(Version {
+            major: numbers[0].parse().unwrap_or(0),
+            minor: numbers[1].parse().unwrap_or(0),
+            patch: numbers[2].parse().unwrap_or(0),
+            suffix,
+        })
+    }
+
+    /// Parses a use declaration: use path::to::module::{items}
+    #[allow(dead_code)]
+    fn parse_use_decl(&mut self) -> Result<UseDecl, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Use)?;
+
+        // Parse path with :: separators
+        let mut path = Vec::new();
+        path.push(self.expect_identifier()?);
+
+        while self.current.kind == TokenKind::PathSep {
+            self.advance();
+            if self.current.kind == TokenKind::LeftBrace {
+                break; // Items list
+            }
+            if self.current.kind == TokenKind::Star {
+                break; // Glob import
+            }
+            path.push(self.expect_identifier()?);
+        }
+
+        // Parse items
+        let items = if self.current.kind == TokenKind::Star {
+            self.advance();
+            UseItems::All
+        } else if self.current.kind == TokenKind::LeftBrace {
+            self.advance();
+            let mut items = Vec::new();
+            while self.current.kind != TokenKind::RightBrace
+                && self.current.kind != TokenKind::Eof
+            {
+                let name = self.expect_identifier()?;
+                let alias = if self.current.kind == TokenKind::As {
+                    self.advance();
+                    Some(self.expect_identifier()?)
+                } else {
+                    None
+                };
+                items.push(UseItem { name, alias });
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+            self.expect(TokenKind::RightBrace)?;
+            UseItems::Named(items)
+        } else {
+            UseItems::Single
+        };
+
+        // Parse optional alias
+        let alias = if self.current.kind == TokenKind::As {
+            self.advance();
+            Some(self.expect_identifier()?)
+        } else {
+            None
+        };
+
+        let span = start_span.merge(&self.previous.span);
+
+        Ok(UseDecl {
+            path,
+            items,
+            alias,
+            span,
+        })
+    }
     /// Parses a gene declaration.
     fn parse_gene(&mut self) -> Result<Declaration, ParseError> {
         let start_span = self.current.span;
         self.expect(TokenKind::Gene)?;
 
         let name = self.expect_identifier()?;
+        // Skip generic type parameters if present: <T, U: Bound>
+        self.skip_type_params()?;
         self.expect(TokenKind::LeftBrace)?;
 
         let statements = self.parse_statements()?;
 
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
+
         self.expect(TokenKind::RightBrace)?;
 
-        let exegesis = self.parse_exegesis()?;
+        // DOL 1.0: exegesis can be after braces
+        // DOL 2.0: use inline or default to empty
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new() // DOL 2.0 tolerant: empty exegesis if none
+        };
 
         let span = start_span.merge(&self.previous.span);
 
@@ -123,13 +372,39 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::Trait)?;
 
         let name = self.expect_identifier()?;
+        // Skip generic type parameters if present
+        self.skip_type_params()?;
         self.expect(TokenKind::LeftBrace)?;
 
-        let statements = self.parse_statements()?;
+        let mut statements = Vec::new();
+        let mut _laws: Vec<LawDecl> = Vec::new();
+
+        while self.current.kind != TokenKind::RightBrace
+            && self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::Exegesis
+        {
+            // Check for law declarations
+            if self.current.kind == TokenKind::Law {
+                let law = self.parse_law_decl()?;
+                _laws.push(law);
+            } else {
+                statements.push(self.parse_statement()?);
+            }
+        }
+
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
 
         self.expect(TokenKind::RightBrace)?;
 
-        let exegesis = self.parse_exegesis()?;
+        // DOL 1.0: exegesis can be after braces
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new()
+        };
 
         let span = start_span.merge(&self.previous.span);
 
@@ -147,13 +422,25 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::Constraint)?;
 
         let name = self.expect_identifier()?;
+        // Skip generic type parameters if present
+        self.skip_type_params()?;
         self.expect(TokenKind::LeftBrace)?;
 
         let statements = self.parse_statements()?;
 
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
+
         self.expect(TokenKind::RightBrace)?;
 
-        let exegesis = self.parse_exegesis()?;
+        // DOL 1.0: exegesis can be after braces
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new()
+        };
 
         let span = start_span.merge(&self.previous.span);
 
@@ -171,27 +458,47 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::System)?;
 
         let name = self.expect_identifier()?;
+        // Skip generic type parameters if present
+        self.skip_type_params()?;
         self.expect(TokenKind::At)?;
         let version = self.expect_version()?;
         self.expect(TokenKind::LeftBrace)?;
 
         let mut requirements = Vec::new();
         let mut statements = Vec::new();
+        let mut _states: Vec<StateDecl> = Vec::new();  // States for future use
 
-        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+        while self.current.kind != TokenKind::RightBrace
+            && self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::Exegesis
+        {
             if self.current.kind == TokenKind::Requires
                 && self.peek_is_identifier()
                 && self.peek_is_version_constraint()
             {
                 requirements.push(self.parse_requirement()?);
+            } else if self.current.kind == TokenKind::State {
+                // Parse state declaration
+                let state = self.parse_state_decl()?;
+                _states.push(state);  // Store in local vector for future use
             } else {
                 statements.push(self.parse_statement()?);
             }
         }
 
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
+
         self.expect(TokenKind::RightBrace)?;
 
-        let exegesis = self.parse_exegesis()?;
+        // DOL 1.0: exegesis can be after braces
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new()
+        };
 
         let span = start_span.merge(&self.previous.span);
 
@@ -221,8 +528,12 @@ impl<'a> Parser<'a> {
         let mut deprecations = Vec::new();
         let mut removals = Vec::new();
         let mut rationale = None;
+        let mut _migrate: Option<Vec<Stmt>> = None;
 
-        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+        while self.current.kind != TokenKind::RightBrace
+            && self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::Exegesis
+        {
             match self.current.kind {
                 TokenKind::Adds => {
                     self.advance();
@@ -242,9 +553,12 @@ impl<'a> Parser<'a> {
                     let text = self.expect_string()?;
                     rationale = Some(text);
                 }
+                TokenKind::Migrate => {
+                    _migrate = Some(self.parse_migrate_block()?);
+                }
                 _ => {
                     return Err(ParseError::UnexpectedToken {
-                        expected: "adds, deprecates, removes, or because".to_string(),
+                        expected: "adds, deprecates, removes, migrate, or because".to_string(),
                         found: format!("'{}'", self.current.lexeme),
                         span: self.current.span,
                     });
@@ -252,9 +566,19 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
+
         self.expect(TokenKind::RightBrace)?;
 
-        let exegesis = self.parse_exegesis()?;
+        // DOL 1.0: exegesis can be after braces
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new()
+        };
 
         let span = start_span.merge(&self.previous.span);
 
@@ -275,7 +599,11 @@ impl<'a> Parser<'a> {
     fn parse_statements(&mut self) -> Result<Vec<Statement>, ParseError> {
         let mut statements = Vec::new();
 
-        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+        // Stop at RightBrace, Eof, or Exegesis (DOL 2.0 puts exegesis inside declaration braces)
+        while self.current.kind != TokenKind::RightBrace
+            && self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::Exegesis
+        {
             statements.push(self.parse_statement()?);
         }
 
@@ -311,6 +639,150 @@ impl<'a> Parser<'a> {
                 phrase,
                 span: start_span.merge(&self.previous.span),
             });
+        }
+
+        // Handle DOL 2.0 'has' field declarations: has name: Type [= default]
+        if self.current.kind == TokenKind::Has {
+            self.advance();
+            let name = self.expect_identifier()?;
+            // Skip type annotation: Type
+            if self.current.kind == TokenKind::Colon {
+                self.advance();
+                self.parse_type()?;
+            }
+            // Skip default value: = expr
+            if self.current.kind == TokenKind::Equal {
+                self.advance();
+                self.parse_expr(0)?;
+            }
+            return Ok(Statement::Has {
+                subject: "self".to_string(),
+                property: name,
+                span: start_span.merge(&self.previous.span),
+            });
+        }
+
+        // Handle DOL 2.0 inline 'constraint' blocks inside declarations
+        if self.current.kind == TokenKind::Constraint {
+            self.advance();
+            let name = self.expect_identifier()?;
+            // Skip constraint body: { ... }
+            if self.current.kind == TokenKind::LeftBrace {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftBrace => depth += 1,
+                        TokenKind::RightBrace => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            return Ok(Statement::Requires {
+                subject: "self".to_string(),
+                requirement: name,
+                span: start_span.merge(&self.previous.span),
+            });
+        }
+
+        // Handle DOL 2.0 'fun' function declarations inside genes
+        if self.current.kind == TokenKind::Function {
+            self.advance();
+            let name = self.expect_identifier()?;
+            // Skip function params and body
+            if self.current.kind == TokenKind::LeftParen {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftParen => depth += 1,
+                        TokenKind::RightParen => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            // Skip return type
+            if self.current.kind == TokenKind::Arrow {
+                self.advance();
+                self.parse_type()?;
+            }
+            // Skip function body
+            if self.current.kind == TokenKind::LeftBrace {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftBrace => depth += 1,
+                        TokenKind::RightBrace => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            return Ok(Statement::Has {
+                subject: "self".to_string(),
+                property: name,
+                span: start_span.merge(&self.previous.span),
+            });
+        }
+
+        // Handle DOL 2.0 'law' declarations
+        if self.current.kind == TokenKind::Law {
+            self.advance();
+            let name = self.expect_identifier()?;
+            // Skip law params
+            if self.current.kind == TokenKind::LeftParen {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftParen => depth += 1,
+                        TokenKind::RightParen => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            // Skip law body
+            if self.current.kind == TokenKind::LeftBrace {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftBrace => depth += 1,
+                        TokenKind::RightBrace => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            return Ok(Statement::Requires {
+                subject: "self".to_string(),
+                requirement: name,
+                span: start_span.merge(&self.previous.span),
+            });
+        }
+
+        // Handle visibility modifiers (pub, pub(spirit), etc.)
+        if self.current.kind == TokenKind::Pub {
+            self.advance();
+            // Skip pub(...) if present
+            if self.current.kind == TokenKind::LeftParen {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftParen => depth += 1,
+                        TokenKind::RightParen => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            // Continue to parse the actual statement
+            return self.parse_statement();
         }
 
         // Parse subject
@@ -606,6 +1078,95 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Parses a has statement with optional default value and constraint.
+    /// Syntax: subject has property [: Type] [= default] [where constraint]
+    /// Returns a Statement::Has with extended information
+    pub fn parse_has_statement(&mut self, subject: String, start_span: Span) -> Result<Statement, ParseError> {
+        self.expect(TokenKind::Has)?;
+        let property = self.expect_identifier()?;
+
+        // Check for HasField with type, default, and constraint
+        // This is for DOL 2.0 extended has syntax
+        // For now, just return the simple Has statement
+        // Extended parsing can be added when needed
+
+        Ok(Statement::Has {
+            subject,
+            property,
+            span: start_span.merge(&self.previous.span),
+        })
+    }
+
+    /// Parses a has field declaration in a gene body.
+    /// Syntax: subject has property: Type [= default] [where constraint]
+    pub fn parse_has_field(&mut self) -> Result<HasField, ParseError> {
+        let start_span = self.current.span;
+
+        let name = self.expect_identifier()?;
+        self.expect(TokenKind::Has)?;
+        let _property = self.expect_identifier()?;  // "property" part becomes part of name
+
+        // Parse optional type
+        let type_ = if self.current.kind == TokenKind::Colon {
+            self.advance();
+            self.parse_type()?
+        } else {
+            TypeExpr::Named("Any".to_string())
+        };
+
+        // Parse optional default
+        let default = if self.current.kind == TokenKind::Equal {
+            self.advance();
+            Some(self.parse_expr(0)?)
+        } else {
+            None
+        };
+
+        // Parse optional constraint
+        let constraint = if self.current.kind == TokenKind::Where {
+            self.advance();
+            Some(self.parse_expr(0)?)
+        } else {
+            None
+        };
+
+        Ok(HasField {
+            name,
+            type_,
+            default,
+            constraint,
+            span: start_span.merge(&self.previous.span),
+        })
+    }
+
+    /// Parses a state declaration in a system.
+    /// Syntax: state name: Type [= default]
+    pub fn parse_state_decl(&mut self) -> Result<StateDecl, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::State)?;
+
+        let name = self.expect_identifier()?;
+
+        // Type is required for state
+        self.expect(TokenKind::Colon)?;
+        let type_ = self.parse_type()?;
+
+        // Parse optional default
+        let default = if self.current.kind == TokenKind::Equal {
+            self.advance();
+            Some(self.parse_expr(0)?)
+        } else {
+            None
+        };
+
+        Ok(StateDecl {
+            name,
+            type_,
+            default,
+            span: start_span.merge(&self.previous.span),
+        })
+    }
+
     /// Parses the exegesis block.
     fn parse_exegesis(&mut self) -> Result<String, ParseError> {
         if self.current.kind != TokenKind::Exegesis {
@@ -654,6 +1215,50 @@ impl<'a> Parser<'a> {
         }
 
         Ok(content.trim().to_string())
+    }
+
+    /// Parses an optional inline exegesis block (DOL 2.0 style).
+    /// Returns None if no exegesis is present.
+    fn parse_inline_exegesis(&mut self) -> Result<Option<String>, ParseError> {
+        if self.current.kind != TokenKind::Exegesis {
+            return Ok(None);
+        }
+
+        self.advance(); // consume 'exegesis'
+        self.expect(TokenKind::LeftBrace)?;
+
+        // Collect all text until closing brace
+        let mut content = String::new();
+        let mut brace_depth = 1;
+
+        let start_pos = self.current.span.start;
+        let source_after_brace = &self.lexer_source()[start_pos..];
+
+        for ch in source_after_brace.chars() {
+            if ch == '{' {
+                brace_depth += 1;
+                content.push(ch);
+            } else if ch == '}' {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    break;
+                }
+                content.push(ch);
+            } else {
+                content.push(ch);
+            }
+        }
+
+        // Skip past the exegesis content in the lexer
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            self.advance();
+        }
+
+        if self.current.kind == TokenKind::RightBrace {
+            self.advance();
+        }
+
+        Ok(Some(content.trim().to_string()))
     }
 
     // === DOL 2.0 Expression Parsing ===
@@ -1407,6 +2012,80 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Parses a law declaration in a trait.
+    ///
+    /// Syntax: `law name(params) { body } [exegesis { ... }]`
+    ///
+    /// Laws are declarative constraints/properties that must hold for a trait.
+    /// Unlike `fun` which contains implementation code, `law` bodies are
+    /// logical expressions (predicates).
+    pub fn parse_law_decl(&mut self) -> Result<LawDecl, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Law)?;
+
+        let name = self.expect_identifier()?;
+
+        // Parse parameters
+        self.expect(TokenKind::LeftParen)?;
+        let mut params = Vec::new();
+        while self.current.kind != TokenKind::RightParen && self.current.kind != TokenKind::Eof {
+            let param_name = self.expect_identifier()?;
+            self.expect(TokenKind::Colon)?;
+            let type_ann = self.parse_type()?;
+            params.push(FunctionParam {
+                name: param_name,
+                type_ann,
+            });
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RightParen)?;
+
+        // Parse body expression (a predicate/constraint)
+        self.expect(TokenKind::LeftBrace)?;
+        let body = self.parse_expr(0)?;
+        self.expect(TokenKind::RightBrace)?;
+
+        // Parse optional exegesis
+        let exegesis = if self.current.kind == TokenKind::Exegesis {
+            Some(self.parse_exegesis()?)
+        } else {
+            None
+        };
+
+        Ok(LawDecl {
+            name,
+            params,
+            body,
+            exegesis,
+            span: start_span.merge(&self.previous.span),
+        })
+    }
+
+    /// Parses a migrate block for evolution.
+    ///
+    /// Syntax: `migrate { statements }`
+    ///
+    /// Migrate blocks contain imperative migration code that transforms
+    /// data or state from the old version to the new version.
+    pub fn parse_migrate_block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        self.expect(TokenKind::Migrate)?;
+        self.expect(TokenKind::LeftBrace)?;
+
+        let mut statements = Vec::new();
+        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
+            statements.push(self.parse_stmt()?);
+        }
+
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(statements)
+    }
+
     // === Macro Parsing ===
 
     /// Parses a macro invocation expression: #macro_name(args)
@@ -1681,7 +2360,7 @@ mod tests {
         let input = r#"
 gene container.exists {
   container has identity
-  container has state
+  container has status
 }
 
 exegesis {
@@ -1719,6 +2398,7 @@ exegesis {
 
     #[test]
     fn test_missing_exegesis() {
+        // DOL 2.0 tolerant: missing exegesis defaults to empty string
         let input = r#"
 gene container.exists {
   container has identity
@@ -1726,12 +2406,14 @@ gene container.exists {
 "#;
         let mut parser = Parser::new(input);
         let result = parser.parse();
-        assert!(result.is_err());
+        assert!(result.is_ok());
 
-        if let Err(ParseError::MissingExegesis { .. }) = result {
-            // Expected
+        // Verify that exegesis is empty when not provided
+        let decl = result.unwrap();
+        if let Declaration::Gene(gene) = decl {
+            assert!(gene.exegesis.is_empty());
         } else {
-            panic!("Expected MissingExegesis error");
+            panic!("Expected Gene declaration");
         }
     }
 }

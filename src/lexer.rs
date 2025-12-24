@@ -241,6 +241,58 @@ pub enum TokenKind {
     /// The `fun` keyword
     Function,
 
+    // === Visibility Keywords (DOL 2.0) ===
+    /// The `pub` keyword
+    Pub,
+    /// The `module` keyword
+    Module,
+    /// The `use` keyword (import)
+    Use,
+    /// The `spirit` keyword
+    Spirit,
+
+    // === SEX Keywords (DOL 2.0) ===
+    /// The `sex` keyword (side effect marker)
+    Sex,
+    /// The `var` keyword (mutable variable)
+    Var,
+    /// The `const` keyword
+    Const,
+    /// The `extern` keyword
+    Extern,
+
+    // === Logic Keywords (DOL 2.0) ===
+    /// The `implies` keyword
+    Implies,
+    /// The `forall` keyword
+    Forall,
+    /// The `exists` keyword (existential quantifier)
+    Exists,
+
+    // === Other Keywords (DOL 2.0) ===
+    /// The `impl` keyword (trait implementation)
+    Impl,
+    /// The `as` keyword
+    As,
+    /// The `state` keyword (system state)
+    State,
+    /// The `law` keyword (trait laws)
+    Law,
+    /// The `mut` keyword (mutable parameter)
+    Mut,
+    /// The `not` keyword (logical negation)
+    Not,
+    /// The `migrate` keyword
+    Migrate,
+
+    // === Boolean and Null Literals (DOL 2.0) ===
+    /// The `true` literal
+    True,
+    /// The `false` literal
+    False,
+    /// The `null` literal
+    Null,
+
     // === Operators ===
     /// At symbol `@`
     At,
@@ -276,6 +328,18 @@ pub enum TokenKind {
     Le,
     /// Member access `.`
     Dot,
+    /// Path separator `::`
+    PathSep,
+    /// Plus-equals `+=`
+    PlusEquals,
+    /// Minus-equals `-=`
+    MinusEquals,
+    /// Star-equals `*=`
+    StarEquals,
+    /// Slash-equals `/=`
+    SlashEquals,
+    /// Spread operator `...`
+    Spread,
 
     // === Delimiters ===
     /// Left parenthesis `(`
@@ -369,6 +433,32 @@ impl TokenKind {
                 | TokenKind::VoidType
                 // DOL 2.0 Function Keyword
                 | TokenKind::Function
+                // DOL 2.0 Visibility Keywords
+                | TokenKind::Pub
+                | TokenKind::Module
+                | TokenKind::Use
+                | TokenKind::Spirit
+                // DOL 2.0 SEX Keywords
+                | TokenKind::Sex
+                | TokenKind::Var
+                | TokenKind::Const
+                | TokenKind::Extern
+                // DOL 2.0 Logic Keywords
+                | TokenKind::Implies
+                | TokenKind::Forall
+                | TokenKind::Exists
+                // DOL 2.0 Other Keywords
+                | TokenKind::Impl
+                | TokenKind::As
+                | TokenKind::State
+                | TokenKind::Law
+                | TokenKind::Mut
+                | TokenKind::Not
+                | TokenKind::Migrate
+                // DOL 2.0 Boolean and Null Literals
+                | TokenKind::True
+                | TokenKind::False
+                | TokenKind::Null
         )
     }
 
@@ -466,6 +556,32 @@ impl std::fmt::Display for TokenKind {
             TokenKind::VoidType => write!(f, "Void"),
             // DOL 2.0 Function Keyword
             TokenKind::Function => write!(f, "fun"),
+            // DOL 2.0 Visibility Keywords
+            TokenKind::Pub => write!(f, "pub"),
+            TokenKind::Module => write!(f, "module"),
+            TokenKind::Use => write!(f, "use"),
+            TokenKind::Spirit => write!(f, "spirit"),
+            // DOL 2.0 SEX Keywords
+            TokenKind::Sex => write!(f, "sex"),
+            TokenKind::Var => write!(f, "var"),
+            TokenKind::Const => write!(f, "const"),
+            TokenKind::Extern => write!(f, "extern"),
+            // DOL 2.0 Logic Keywords
+            TokenKind::Implies => write!(f, "implies"),
+            TokenKind::Forall => write!(f, "forall"),
+            TokenKind::Exists => write!(f, "exists"),
+            // DOL 2.0 Other Keywords
+            TokenKind::Impl => write!(f, "impl"),
+            TokenKind::As => write!(f, "as"),
+            TokenKind::State => write!(f, "state"),
+            TokenKind::Law => write!(f, "law"),
+            TokenKind::Mut => write!(f, "mut"),
+            TokenKind::Not => write!(f, "not"),
+            TokenKind::Migrate => write!(f, "migrate"),
+            // DOL 2.0 Boolean and Null Literals
+            TokenKind::True => write!(f, "true"),
+            TokenKind::False => write!(f, "false"),
+            TokenKind::Null => write!(f, "null"),
             // Operators
             TokenKind::At => write!(f, "@"),
             TokenKind::Greater => write!(f, ">"),
@@ -484,6 +600,12 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Lt => write!(f, "<"),
             TokenKind::Le => write!(f, "<="),
             TokenKind::Dot => write!(f, "."),
+            TokenKind::PathSep => write!(f, "::"),
+            TokenKind::PlusEquals => write!(f, "+="),
+            TokenKind::MinusEquals => write!(f, "-="),
+            TokenKind::StarEquals => write!(f, "*="),
+            TokenKind::SlashEquals => write!(f, "/="),
+            TokenKind::Spread => write!(f, "..."),
             // Delimiters
             TokenKind::LeftParen => write!(f, "("),
             TokenKind::RightParen => write!(f, ")"),
@@ -745,12 +867,26 @@ impl<'a> Lexer<'a> {
         let start_col = self.column;
 
         // Check multi-character operators first (longest match)
-        let (kind, len) = if self.remaining.starts_with("|>") {
+        // Check 3-character operators first
+        let (kind, len) = if self.remaining.starts_with("...") {
+            (TokenKind::Spread, 3)
+        // Check 2-character operators
+        } else if self.remaining.starts_with("|>") {
             (TokenKind::Pipe, 2)
         } else if self.remaining.starts_with(">>") {
             (TokenKind::Compose, 2)
+        } else if self.remaining.starts_with("::") {
+            (TokenKind::PathSep, 2)
         } else if self.remaining.starts_with(":=") {
             (TokenKind::Bind, 2)
+        } else if self.remaining.starts_with("+=") {
+            (TokenKind::PlusEquals, 2)
+        } else if self.remaining.starts_with("-=") {
+            (TokenKind::MinusEquals, 2)
+        } else if self.remaining.starts_with("*=") {
+            (TokenKind::StarEquals, 2)
+        } else if self.remaining.starts_with("/=") {
+            (TokenKind::SlashEquals, 2)
         } else if self.remaining.starts_with("[|") {
             (TokenKind::IdiomOpen, 2)
         } else if self.remaining.starts_with("|]") {
@@ -1012,6 +1148,32 @@ impl<'a> Lexer<'a> {
             "Void" => Some(TokenKind::VoidType),
             // DOL 2.0 function keyword
             "fun" => Some(TokenKind::Function),
+            // DOL 2.0 visibility keywords
+            "pub" => Some(TokenKind::Pub),
+            "module" => Some(TokenKind::Module),
+            "use" => Some(TokenKind::Use),
+            "spirit" => Some(TokenKind::Spirit),
+            // DOL 2.0 SEX keywords
+            "sex" => Some(TokenKind::Sex),
+            "var" => Some(TokenKind::Var),
+            "const" => Some(TokenKind::Const),
+            "extern" => Some(TokenKind::Extern),
+            // DOL 2.0 logic keywords
+            "implies" => Some(TokenKind::Implies),
+            "forall" => Some(TokenKind::Forall),
+            "exists" => Some(TokenKind::Exists),
+            // DOL 2.0 other keywords
+            "impl" => Some(TokenKind::Impl),
+            "as" => Some(TokenKind::As),
+            "state" => Some(TokenKind::State),
+            "law" => Some(TokenKind::Law),
+            "mut" => Some(TokenKind::Mut),
+            "not" => Some(TokenKind::Not),
+            "migrate" => Some(TokenKind::Migrate),
+            // DOL 2.0 boolean and null literals
+            "true" => Some(TokenKind::True),
+            "false" => Some(TokenKind::False),
+            "null" => Some(TokenKind::Null),
             _ => None,
         }
     }

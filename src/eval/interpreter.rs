@@ -209,6 +209,31 @@ impl Interpreter {
                 // TODO: Implement proper quasi-quotation with unquote splicing
                 Ok(Value::Quoted(inner.clone()))
             }
+
+            // Forall - universal quantification (logic operator)
+            Expr::Forall(forall_expr) => {
+                // Forall expressions are logic predicates, evaluate the body
+                // In a full implementation, this would verify the property for all values of the type
+                self.eval_in_env(&forall_expr.body, env)
+            }
+
+            // Exists - existential quantification (logic operator)
+            Expr::Exists(exists_expr) => {
+                // Exists expressions are logic predicates, evaluate the body
+                // In a full implementation, this would check if any value of the type satisfies the property
+                self.eval_in_env(&exists_expr.body, env)
+            }
+
+            // Implies - logical implication
+            Expr::Implies { left, right, .. } => {
+                // P => Q is equivalent to !P || Q
+                let left_val = self.eval_in_env(left, env)?;
+                if !left_val.is_truthy() {
+                    Ok(Value::Bool(true))
+                } else {
+                    self.eval_in_env(right, env)
+                }
+            }
         }
     }
 
@@ -219,6 +244,7 @@ impl Interpreter {
             Literal::Float(f) => Value::Float(*f),
             Literal::Bool(b) => Value::Bool(*b),
             Literal::String(s) => Value::String(s.clone()),
+            Literal::Null => Value::Void, // Null maps to Void
         })
     }
 
@@ -280,6 +306,16 @@ impl Interpreter {
                 // For now, treat as function application (simplified)
                 // Full applicative support would require type class instances
                 self.eval_apply(&left_val, &right_val, env)
+            }
+
+            // Logical implication
+            BinaryOp::Implies => {
+                // P => Q is equivalent to !P || Q
+                if !left_val.is_truthy() {
+                    Ok(Value::Bool(true))
+                } else {
+                    Ok(Value::Bool(right_val.is_truthy()))
+                }
             }
         }
     }

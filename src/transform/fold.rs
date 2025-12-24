@@ -180,6 +180,29 @@ pub trait Fold {
             Expr::Eval(inner) => self.fold_eval(*inner),
             Expr::Reflect(ty) => self.fold_reflect(*ty),
             Expr::IdiomBracket { func, args } => self.fold_idiom_bracket(*func, args),
+            Expr::Forall(forall_expr) => {
+                use crate::ast::ForallExpr;
+                Expr::Forall(ForallExpr {
+                    var: forall_expr.var.clone(),
+                    type_: forall_expr.type_.clone(),
+                    body: Box::new(self.fold_expr(*forall_expr.body)),
+                    span: forall_expr.span,
+                })
+            }
+            Expr::Exists(exists_expr) => {
+                use crate::ast::ExistsExpr;
+                Expr::Exists(ExistsExpr {
+                    var: exists_expr.var.clone(),
+                    type_: exists_expr.type_.clone(),
+                    body: Box::new(self.fold_expr(*exists_expr.body)),
+                    span: exists_expr.span,
+                })
+            }
+            Expr::Implies { left, right, span } => Expr::Implies {
+                left: Box::new(self.fold_expr(*left)),
+                right: Box::new(self.fold_expr(*right)),
+                span,
+            },
         }
     }
 

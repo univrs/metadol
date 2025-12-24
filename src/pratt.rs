@@ -49,6 +49,9 @@ use crate::lexer::TokenKind;
 /// `None` otherwise.
 pub fn infix_binding_power(op: &TokenKind) -> Option<(u8, u8)> {
     Some(match op {
+        // Implies (loosest, right-assoc, lower than || but higher than pipes)
+        TokenKind::Implies => (3, 2),
+
         // Assignment (loosest, right-assoc)
         TokenKind::Bind => (10, 9),
 

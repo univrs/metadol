@@ -398,6 +398,7 @@ impl TypeChecker {
                 Literal::Float(_) => Ok(Type::Float64),
                 Literal::Bool(_) => Ok(Type::Bool),
                 Literal::String(_) => Ok(Type::String),
+                Literal::Null => Ok(Type::Unknown), // Null is polymorphic
             },
 
             // Identifiers
@@ -513,6 +514,29 @@ impl TypeChecker {
                     name: "Quoted".to_string(),
                     args: vec![inner_type],
                 })
+            }
+            // Logic expressions
+            Expr::Forall(forall_expr) => {
+                // Forall expressions have type Bool (they are propositions)
+                self.infer(&forall_expr.body)?;
+                Ok(Type::Bool)
+            }
+            Expr::Exists(exists_expr) => {
+                // Exists expressions have type Bool (they are propositions)
+                self.infer(&exists_expr.body)?;
+                Ok(Type::Bool)
+            }
+            Expr::Implies { left, right, .. } => {
+                // Implication requires both sides to be Bool
+                let left_type = self.infer(left)?;
+                let right_type = self.infer(right)?;
+                if left_type != Type::Bool || right_type != Type::Bool {
+                    self.error(TypeError::new(format!(
+                        "implication requires Bool, found {} and {}",
+                        left_type, right_type
+                    )));
+                }
+                Ok(Type::Bool)
             }
         }
     }
@@ -742,6 +766,17 @@ impl TypeChecker {
                 // Type: f (a -> b) -> f a -> f b
                 // For now, return Unknown (full applicative support TBD)
                 Ok(Type::Unknown)
+            }
+
+            // Logical implication
+            BinaryOp::Implies => {
+                if left_type != Type::Bool || right_type != Type::Bool {
+                    self.error(TypeError::new(format!(
+                        "implication requires Bool, found {} and {}",
+                        left_type, right_type
+                    )));
+                }
+                Ok(Type::Bool)
             }
         }
     }

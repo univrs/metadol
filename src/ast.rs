@@ -115,6 +115,105 @@ impl Span {
     }
 }
 
+/// Visibility modifier for declarations.
+///
+/// Controls the accessibility of declarations across module boundaries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Visibility {
+    /// Private to the current module (default)
+    #[default]
+    Private,
+    /// Public to all modules
+    Public,
+    /// Public to the spirit (same logical domain)
+    PubSpirit,
+    /// Public to the parent module
+    PubParent,
+}
+
+/// Semantic version number.
+///
+/// Supports standard semver (major.minor.patch) plus optional suffix
+/// for pre-release versions or geological time scales (e.g., "Gya").
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Version {
+    /// Major version number
+    pub major: u32,
+    /// Minor version number
+    pub minor: u32,
+    /// Patch version number
+    pub patch: u32,
+    /// Optional suffix (e.g., "alpha", "beta", "Gya")
+    pub suffix: Option<String>,
+}
+
+/// Module declaration: `module name.path @ version`.
+///
+/// Defines a module with a hierarchical path and optional version.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ModuleDecl {
+    /// Module path components (e.g., ["std", "io"])
+    pub path: Vec<String>,
+    /// Optional version number
+    pub version: Option<Version>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Use/import statement.
+///
+/// Imports declarations from other modules into the current scope.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct UseDecl {
+    /// Module path to import from
+    pub path: Vec<String>,
+    /// What items to import
+    pub items: UseItems,
+    /// Optional alias for the import
+    pub alias: Option<String>,
+    /// Source location
+    pub span: Span,
+}
+
+/// What items are imported in a use declaration.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum UseItems {
+    /// Import all items: `use module.*`
+    All,
+    /// Import specific named items: `use module.{item1, item2}`
+    Named(Vec<UseItem>),
+    /// Import the module itself: `use module`
+    Single,
+}
+
+/// A single item in a named import list.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct UseItem {
+    /// Item name to import
+    pub name: String,
+    /// Optional alias for this item
+    pub alias: Option<String>,
+}
+
+/// Purity marker for functions and operations.
+///
+/// Distinguishes pure (side-effect free) from impure (side-effecting) code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Purity {
+    /// Pure function (no side effects)
+    #[default]
+    Pure,
+    /// Side-effecting function
+    Sex,
+}
+
 /// The top-level declaration types in Metal DOL.
 ///
 /// Every DOL file contains exactly one primary declaration followed by
@@ -647,6 +746,8 @@ pub enum BinaryOp {
     Map,
     /// Applicative apply `<*>` - applies a wrapped function to a wrapped value
     Ap,
+    /// Logical implication `=>`
+    Implies,
 }
 
 /// Unary operator for expressions.
@@ -690,6 +791,67 @@ pub enum TypeExpr {
     },
     /// Tuple type (e.g., `(Int32, String, Bool)`)
     Tuple(Vec<TypeExpr>),
+}
+
+/// Type parameter: `<T>`, `<T: Trait>`, `<T: Trait + Other>`.
+///
+/// Represents a type parameter in a generic declaration with optional
+/// bounds and default type.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TypeParam {
+    /// Type parameter name (e.g., "T", "K", "V")
+    pub name: String,
+    /// Type bounds (trait constraints)
+    pub bounds: Vec<TypeExpr>,
+    /// Optional default type
+    pub default: Option<TypeExpr>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Type parameters list: `<T, U, V>`.
+///
+/// Represents a collection of type parameters for generic declarations.
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TypeParams {
+    /// List of type parameters
+    pub params: Vec<TypeParam>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Universal quantifier: `forall x: T. expr`.
+///
+/// Represents universal quantification in first-order logic.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ForallExpr {
+    /// Bound variable name
+    pub var: String,
+    /// Type of the bound variable
+    pub type_: TypeExpr,
+    /// Body expression (the proposition)
+    pub body: Box<Expr>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Existential quantifier: `exists x: T. expr`.
+///
+/// Represents existential quantification in first-order logic.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ExistsExpr {
+    /// Bound variable name
+    pub var: String,
+    /// Type of the bound variable
+    pub type_: TypeExpr,
+    /// Body expression (the proposition)
+    pub body: Box<Expr>,
+    /// Source location
+    pub span: Span,
 }
 
 /// Expression node for DOL 2.0.
@@ -783,6 +945,19 @@ pub enum Expr {
         /// Arguments to lift and apply
         args: Vec<Expr>,
     },
+    /// Universal quantification: `forall x: T. expr`
+    Forall(ForallExpr),
+    /// Existential quantification: `exists x: T. expr`
+    Exists(ExistsExpr),
+    /// Logical implication (can also be represented as Binary with Implies op)
+    Implies {
+        /// Left operand (antecedent)
+        left: Box<Expr>,
+        /// Right operand (consequent)
+        right: Box<Expr>,
+        /// Source location
+        span: Span,
+    },
 }
 
 /// Literal value.
@@ -799,6 +974,8 @@ pub enum Literal {
     String(String),
     /// Boolean literal
     Bool(bool),
+    /// Null literal
+    Null,
 }
 
 /// Runtime representation of quoted code.
@@ -927,6 +1104,10 @@ impl QuotedExpr {
             Expr::QuasiQuote(inner) => {
                 // QuasiQuote is treated similar to Quote but allows unquotes
                 QuotedExpr::Quote(Box::new(QuotedExpr::from_expr(inner)))
+            }
+            Expr::Forall(_) | Expr::Exists(_) | Expr::Implies { .. } => {
+                // For logical expressions, convert to identifier (simplified)
+                QuotedExpr::Ident(format!("{:?}", expr))
             }
             // For other expression types, convert to identifier (simplified)
             _ => QuotedExpr::Ident(format!("{:?}", expr)),
@@ -1109,6 +1290,60 @@ pub struct FunctionDecl {
     pub return_type: Option<TypeExpr>,
     /// Function body (statements)
     pub body: Vec<Stmt>,
+    /// Source location
+    pub span: Span,
+}
+
+/// State declaration in a system.
+///
+/// Represents a stateful variable in a system declaration with optional default value.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct StateDecl {
+    /// State variable name
+    pub name: String,
+    /// Type of the state variable
+    pub type_: TypeExpr,
+    /// Optional default value
+    pub default: Option<Expr>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Law declaration in a trait.
+///
+/// Represents a logical law or property that must hold for a trait.
+/// Laws are expressed as logical propositions.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LawDecl {
+    /// Law name
+    pub name: String,
+    /// Parameters for the law (universally quantified variables)
+    pub params: Vec<FunctionParam>,
+    /// The law body (logical proposition)
+    pub body: Expr,
+    /// Optional exegesis explaining the law
+    pub exegesis: Option<String>,
+    /// Source location
+    pub span: Span,
+}
+
+/// Field declaration in a gene with optional default value.
+///
+/// Represents a field in a gene declaration, potentially with default value
+/// and constraint.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct HasField {
+    /// Field name
+    pub name: String,
+    /// Field type
+    pub type_: TypeExpr,
+    /// Optional default value
+    pub default: Option<Expr>,
+    /// Optional constraint on the field
+    pub constraint: Option<Expr>,
     /// Source location
     pub span: Span,
 }

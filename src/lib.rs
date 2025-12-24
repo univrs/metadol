@@ -227,12 +227,14 @@ exegesis {
 
     #[test]
     fn test_parse_missing_exegesis() {
+        // DOL 2.0 tolerant: missing exegesis defaults to empty string
         let source = r#"
 gene container.exists {
   container has identity
 }
 "#;
         let result = parse_file(source);
-        assert!(result.is_err());
+        assert!(result.is_ok());
+        // Exegesis will be empty when not provided
     }
 }

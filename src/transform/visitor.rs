@@ -278,6 +278,18 @@ fn walk_expr<V: Visitor + ?Sized>(v: &mut V, expr: &Expr) {
                 v.visit_expr(arg);
             }
         }
+        Expr::Forall(forall_expr) => {
+            v.visit_type_expr(&forall_expr.type_);
+            v.visit_expr(&forall_expr.body);
+        }
+        Expr::Exists(exists_expr) => {
+            v.visit_type_expr(&exists_expr.type_);
+            v.visit_expr(&exists_expr.body);
+        }
+        Expr::Implies { left, right, .. } => {
+            v.visit_expr(left);
+            v.visit_expr(right);
+        }
     }
 }
 
@@ -426,6 +438,18 @@ fn walk_expr_mut<V: MutVisitor + ?Sized>(v: &mut V, expr: &mut Expr) {
             for arg in args {
                 v.visit_expr(arg);
             }
+        }
+        Expr::Forall(forall_expr) => {
+            v.visit_type_expr(&mut forall_expr.type_);
+            v.visit_expr(&mut forall_expr.body);
+        }
+        Expr::Exists(exists_expr) => {
+            v.visit_type_expr(&mut exists_expr.type_);
+            v.visit_expr(&mut exists_expr.body);
+        }
+        Expr::Implies { left, right, .. } => {
+            v.visit_expr(left);
+            v.visit_expr(right);
         }
         Expr::Literal(_) | Expr::Identifier(_) => {}
     }
