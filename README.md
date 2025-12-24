@@ -157,8 +157,8 @@ dol/macros/expand   # Expand a macro
 
 ```bash
 # Clone the repository
-git clone https://github.com/univrs/metadol.git
-cd metadol
+git clone https://github.com/univrs/dol.git
+cd dol
 
 # Build the project
 cargo build --release
@@ -180,13 +180,15 @@ gene user.Account {
     constraint valid_email {
         this.email.contains("@")
     }
+  
+  exegesis {
+      A user account represents an authenticated entity in the system.
+      Every account has a unique identifier, validated email address,
+      and creation timestamp.
+    }
 }
 
-exegesis {
-    A user account represents an authenticated entity in the system.
-    Every account has a unique identifier, validated email address,
-    and creation timestamp.
-}
+
 
 trait user.Authenticatable {
     uses user.Account
@@ -194,13 +196,15 @@ trait user.Authenticatable {
     fun authenticate(password: String) -> Bool
     fun reset_password(new_password: String) -> Result<Void, Error>
     
-    each authentication emits AuthEvent
+    each authentication emits AuthEvent 
+  
+    exegesis {
+      Authenticatable provides password-based authentication
+      with secure password reset capabilities.
+    }
 }
 
-exegesis {
-    Authenticatable provides password-based authentication
-    with secure password reset capabilities.
-}
+
 ```
 
 ### Parse and Validate
@@ -237,8 +241,8 @@ Summary
 
 ```bash
 # Clone and build
-git clone https://github.com/univrs/metadol.git
-cd metadol
+git clone https://github.com/univrs/dol.git
+cd dol
 cargo build --release
 
 # Install CLI tools
@@ -329,13 +333,14 @@ gene container.Container {
     constraint resources_bounded {
         this.resources.memory <= MAX_MEMORY
     }
+  
+    exegesis {
+      Container is the fundamental unit of workload isolation.
+      Each container has immutable identity, mutable state,
+      and enforced resource boundaries.
+    }
 }
 
-exegesis {
-    A Container is the fundamental unit of workload isolation.
-    Each container has immutable identity, mutable state,
-    and enforced resource boundaries.
-}
 ```
 
 ### Traits
@@ -352,12 +357,25 @@ trait container.Lifecycle {
     
     each state_change emits LifecycleEvent
     all containers is monitored
+  
+    exegesis {
+      Lifecycle defines the state machine for container
+      management with event emission on transitions.
+    }
 }
 
-exegesis {
-    Lifecycle defines the state machine for container
-    management with event emission on transitions.
+trait container.Health {
+    uses container.Container
+    
+    fun check() -> Result<HealthStatus, Error>
+    
+    exegesis {
+      Health provides a mechanism to assess the health
+      of a container based on its current state and
+      resource utilization.
+    }
 }
+
 ```
 
 ### Constraints
@@ -369,12 +387,13 @@ constraint container.Integrity {
     identity matches original_identity
     state never undefined
     boundaries never exceeded
-}
-
-exegesis {
+  
+  exegesis {
     Container integrity ensures immutable identity,
     defined state, and enforced resource limits.
+  }
 }
+
 ```
 
 ### Systems
@@ -389,12 +408,15 @@ system univrs.Orchestrator @ 0.3.0 {
     
     each container has supervisor
     all containers is health_checked
+  
+   exegesis {
+     The Orchestrator manages container lifecycles,
+     scheduling, and health monitoring across nodes.
+  }
+  
 }
 
-exegesis {
-    The Orchestrator manages container lifecycles,
-    scheduling, and health monitoring across nodes.
-}
+
 ```
 
 ### Evolutions
@@ -407,12 +429,15 @@ evolves container.Lifecycle @ 0.2.0 > 0.1.0 {
     adds fun resume() -> Result<Void, Error>
     deprecates fun restart()
     because "Live migration requires pause/resume semantics"
+  
+
+  exegesis {
+     Version 0.2.0 introduces pause/resume for live migration
+     support, deprecating the atomic restart operation.
+  }
 }
 
-exegesis {
-    Version 0.2.0 introduces pause/resume for live migration
-    support, deprecating the atomic restart operation.
-}
+
 ```
 
 ---
@@ -469,7 +494,7 @@ Fun<Fun<Int64, Int64>, Int64>
 DOL 2.0 includes a powerful AST transformation framework:
 
 ```rust
-use metadol::transform::{Pass, PassPipeline, Visitor, Fold};
+use dol::transform::{Pass, PassPipeline, Visitor, Fold};
 
 // Built-in passes
 let pipeline = PassPipeline::new()
@@ -495,7 +520,7 @@ let optimized = pipeline.run(ast)?;
 ## Project Structure
 
 ```
-metadol/
+dol/
 ├── src/
 │   ├── lib.rs              # Library entry point
 │   ├── lexer.rs            # Tokenization
@@ -610,7 +635,7 @@ examples/
 - **[Language Specification](docs/specification.md)** — Formal language spec
 - **[Grammar (EBNF)](docs/grammar.ebnf)** — Formal grammar
 - **[Tutorials](docs/tutorials/)** — Step-by-step guides
-- **[API Docs](https://docs.rs/metadol)** — Rust API reference
+- **[API Docs](https://docs.rs/dol)** — Rust API reference
 
 Generate local documentation:
 
@@ -646,7 +671,8 @@ at your option.
 
 ## Acknowledgments
 
-DOL is part of the [Univrs](https://github.com/univrs) ecosystem, building the foundation for VUDO OS — a distributed, AI-native operating system where systems describe their ontological nature before their functionality.
+DOL is part of the [Univrs](https://github.com/univrs) ecosystem, building the foundation for VUDO OS — 
+a distributed, AI-native operating system where systems describe their ontological nature before their functionality.
 
 ---
 
