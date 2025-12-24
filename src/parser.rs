@@ -224,6 +224,7 @@ impl<'a> Parser<'a> {
             TokenKind::Constraint => self.parse_constraint(),
             TokenKind::System => self.parse_system(),
             TokenKind::Evolves => self.parse_evolution(),
+            TokenKind::Sex => self.parse_sex_top_level(),
             TokenKind::Exegesis => {
                 // Skip file-level exegesis block
                 self.advance(); // consume 'exegesis'
@@ -1375,6 +1376,50 @@ impl<'a> Parser<'a> {
             return_type,
             span: start_span.merge(&self.previous.span),
         })
+    }
+
+    /// Parse top-level sex declaration (sex var, sex fun, sex extern)
+    fn parse_sex_top_level(&mut self) -> Result<Declaration, ParseError> {
+        let start = self.current.span;
+        // Don't consume 'sex' - let child functions do it
+
+        // Peek at what comes after 'sex'
+        let next = self.peek();
+
+        match next.kind {
+            TokenKind::Var => {
+                let var_decl = self.parse_sex_var()?;
+                Ok(Declaration::Gene(Gene {
+                    name: var_decl.name.clone(),
+                    statements: vec![],
+                    exegesis: format!("sex var {}", var_decl.name),
+                    span: var_decl.span,
+                }))
+            }
+            TokenKind::Function => {
+                self.advance(); // consume 'sex'
+                let func = self.parse_function_decl()?;
+                Ok(Declaration::Gene(Gene {
+                    name: func.name.clone(),
+                    statements: vec![],
+                    exegesis: format!("sex fun {}", func.name),
+                    span: func.span,
+                }))
+            }
+            TokenKind::Extern => {
+                let extern_decl = self.parse_sex_extern()?;
+                Ok(Declaration::Gene(Gene {
+                    name: extern_decl.name.clone(),
+                    statements: vec![],
+                    exegesis: format!("sex extern {}", extern_decl.name),
+                    span: extern_decl.span,
+                }))
+            }
+            _ => Err(ParseError::InvalidDeclaration {
+                found: format!("sex {}", next.lexeme),
+                span: start,
+            }),
+        }
     }
 
     /// Parses the exegesis block.
