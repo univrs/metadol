@@ -1,5 +1,5 @@
 use metadol::ast::{BinaryOp, Expr, Literal};
-use metadol::codegen::rust::RustCodegen;
+use metadol::codegen::RustCodegen;
 
 #[test]
 fn test_gen_pipe_operator() {
@@ -196,10 +196,7 @@ fn test_gen_ap_operator() {
         op: BinaryOp::Ap,
         right: Box::new(Expr::Identifier("mx".to_string())),
     };
-    assert_eq!(
-        gen.gen_expr(&expr),
-        "/* applicative apply */ mf.ap(mx)"
-    );
+    assert_eq!(gen.gen_expr(&expr), "/* applicative apply */ mf.ap(mx)");
 }
 
 #[test]

@@ -1,0 +1,204 @@
+module dol.lexer @ 0.2.0
+
+exegesis {
+  The DOL lexer tokenizes DOL source code into a stream of tokens.
+  This is the first step in DOL self-hosting: writing the compiler in DOL.
+}
+
+/// Token types for the DOL language
+pub gene Token {
+  type: enum {
+    // Keywords
+    Module, Use, Pub, Gene, Trait, System,
+    Constraint, Evolves, Fun, Return,
+    If, Else, Match, For, While, Loop,
+    Break, Continue, Has, Is, Type,
+    Sex, Extern, Var, Let, Const,
+    Forall, Exists, Where, Law,
+
+    // Literals
+    IntLit, FloatLit, StringLit, BoolLit, NullLit,
+
+    // Operators
+    Plus, Minus, Star, Slash, Percent, Caret,
+    Eq, Ne, Lt, Le, Gt, Ge,
+    And, Or, Not, Pipe, Compose,
+    Quote, Bang, Question, Hash,
+    Arrow, FatArrow, Bind, Map, Ap,
+
+    // Delimiters
+    LBrace, RBrace, LParen, RParen,
+    LBracket, RBracket, LIdiom, RIdiom,
+    Comma, Colon, Semicolon, Dot, At,
+
+    // Meta
+    Identifier, Eof, Error
+  }
+}
+
+exegesis {
+  A span tracks the source location of a token.
+}
+
+/// Source location for error reporting
+pub gene Span {
+  has start: UInt64 = 0
+  has end: UInt64 = 0
+  has line: UInt32 = 1
+  has column: UInt32 = 1
+}
+
+exegesis {
+  A spanned token combines a token with its source location and text.
+}
+
+/// Token with source location and original text
+pub gene SpannedToken {
+  has token: Token
+  has span: Span
+  has text: String
+}
+
+exegesis {
+  The lexer state tracks position during tokenization.
+}
+
+/// Lexer state for tokenization
+pub gene Lexer {
+  has source: String
+  has position: UInt64 = 0
+  has line: UInt32 = 1
+  has column: UInt32 = 1
+}
+
+exegesis {
+  Tokenize DOL source code into a list of spanned tokens.
+}
+
+/// Main lexer function
+pub fun lex(source: String) -> List<SpannedToken> {
+  let tokens = []
+  let lexer = Lexer { source: source }
+
+  while lexer.position < source.length() {
+    // Skip whitespace
+    skip_whitespace(lexer)
+
+    if lexer.position >= source.length() {
+      break
+    }
+
+    let token = scan_token(lexer)
+    tokens.push(token)
+  }
+
+  // Add EOF token
+  tokens.push(SpannedToken {
+    token: Token.Eof,
+    span: Span { start: source.length(), end: source.length(), line: lexer.line, column: lexer.column },
+    text: ""
+  })
+
+  return tokens
+}
+
+exegesis {
+  Skip whitespace characters.
+}
+
+fun skip_whitespace(lexer: Lexer) {
+  while lexer.position < lexer.source.length() {
+    let c = lexer.source.char_at(lexer.position)
+    match c {
+      ' ' | '\t' | '\r' {
+        lexer.position = lexer.position + 1
+        lexer.column = lexer.column + 1
+      }
+      '\n' {
+        lexer.position = lexer.position + 1
+        lexer.line = lexer.line + 1
+        lexer.column = 1
+      }
+      _ { break }
+    }
+  }
+}
+
+exegesis {
+  Scan a single token from the source.
+}
+
+fun scan_token(lexer: Lexer) -> SpannedToken {
+  let start = lexer.position
+  let start_line = lexer.line
+  let start_col = lexer.column
+  let c = lexer.source.char_at(lexer.position)
+
+  // Single character tokens
+  match c {
+    '{' { return make_token(lexer, Token.LBrace, start, start_line, start_col) }
+    '}' { return make_token(lexer, Token.RBrace, start, start_line, start_col) }
+    '(' { return make_token(lexer, Token.LParen, start, start_line, start_col) }
+    ')' { return make_token(lexer, Token.RParen, start, start_line, start_col) }
+    '[' { return make_token(lexer, Token.LBracket, start, start_line, start_col) }
+    ']' { return make_token(lexer, Token.RBracket, start, start_line, start_col) }
+    ',' { return make_token(lexer, Token.Comma, start, start_line, start_col) }
+    ':' { return make_token(lexer, Token.Colon, start, start_line, start_col) }
+    ';' { return make_token(lexer, Token.Semicolon, start, start_line, start_col) }
+    '.' { return make_token(lexer, Token.Dot, start, start_line, start_col) }
+    '@' { return make_token(lexer, Token.At, start, start_line, start_col) }
+    '+' { return make_token(lexer, Token.Plus, start, start_line, start_col) }
+    '-' { return scan_arrow_or_minus(lexer, start, start_line, start_col) }
+    '*' { return make_token(lexer, Token.Star, start, start_line, start_col) }
+    '/' { return make_token(lexer, Token.Slash, start, start_line, start_col) }
+    '%' { return make_token(lexer, Token.Percent, start, start_line, start_col) }
+    '^' { return make_token(lexer, Token.Caret, start, start_line, start_col) }
+    '!' { return make_token(lexer, Token.Bang, start, start_line, start_col) }
+    '?' { return make_token(lexer, Token.Question, start, start_line, start_col) }
+    '#' { return make_token(lexer, Token.Hash, start, start_line, start_col) }
+    '\'' { return make_token(lexer, Token.Quote, start, start_line, start_col) }
+    _ {
+      if is_digit(c) {
+        return scan_number(lexer, start, start_line, start_col)
+      }
+      if is_alpha(c) {
+        return scan_identifier_or_keyword(lexer, start, start_line, start_col)
+      }
+      if c == '"' {
+        return scan_string(lexer, start, start_line, start_col)
+      }
+      // Unknown character
+      return make_token(lexer, Token.Error, start, start_line, start_col)
+    }
+  }
+}
+
+exegesis {
+  Create a spanned token and advance the lexer.
+}
+
+fun make_token(lexer: Lexer, token: Token, start: UInt64, line: UInt32, col: UInt32) -> SpannedToken {
+  lexer.position = lexer.position + 1
+  lexer.column = lexer.column + 1
+  return SpannedToken {
+    token: token,
+    span: Span { start: start, end: lexer.position, line: line, column: col },
+    text: lexer.source.substring(start, lexer.position)
+  }
+}
+
+exegesis {
+  Check if character is a digit.
+}
+
+fun is_digit(c: Char) -> Bool {
+  return c >= '0' && c <= '9'
+}
+
+exegesis {
+  Check if character is alphabetic or underscore.
+}
+
+fun is_alpha(c: Char) -> Bool {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}

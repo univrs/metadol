@@ -615,7 +615,7 @@ pub enum Statement {
     },
 
     /// Typed field declaration: `subject has field: Type [= default] [where constraint]`
-    HasField(HasField),
+    HasField(Box<HasField>),
 
     /// State or behavior: `subject is state`
     Is {

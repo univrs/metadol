@@ -15,20 +15,20 @@ fn test_codegen_simple_gene() {
     let gene = Gene {
         name: "Point".to_string(),
         statements: vec![
-            Statement::HasField(HasField {
+            Statement::HasField(Box::new(HasField {
                 name: "x".to_string(),
                 type_: TypeExpr::Named("Float64".to_string()),
                 default: Some(Expr::Literal(Literal::Float(0.0))),
                 constraint: None,
                 span: Span::default(),
-            }),
-            Statement::HasField(HasField {
+            })),
+            Statement::HasField(Box::new(HasField {
                 name: "y".to_string(),
                 type_: TypeExpr::Named("Float64".to_string()),
                 default: Some(Expr::Literal(Literal::Float(0.0))),
                 constraint: None,
                 span: Span::default(),
-            }),
+            })),
         ],
         exegesis: "A 2D point in Cartesian coordinates".to_string(),
         span: Span::default(),
@@ -54,7 +54,7 @@ fn test_codegen_simple_gene() {
 fn test_codegen_gene_with_constraint() {
     let gene = Gene {
         name: "PositiveNumber".to_string(),
-        statements: vec![Statement::HasField(HasField {
+        statements: vec![Statement::HasField(Box::new(HasField {
             name: "value".to_string(),
             type_: TypeExpr::Named("Int64".to_string()),
             default: None,
@@ -64,7 +64,7 @@ fn test_codegen_gene_with_constraint() {
                 right: Box::new(Expr::Literal(Literal::Int(0))),
             }),
             span: Span::default(),
-        })],
+        }))],
         exegesis: "A number that must be positive".to_string(),
         span: Span::default(),
     };
@@ -94,21 +94,21 @@ fn test_codegen_gene_with_multiple_types() {
     let gene = Gene {
         name: "User".to_string(),
         statements: vec![
-            Statement::HasField(HasField {
+            Statement::HasField(Box::new(HasField {
                 name: "id".to_string(),
                 type_: TypeExpr::Named("UInt64".to_string()),
                 default: None,
                 constraint: None,
                 span: Span::default(),
-            }),
-            Statement::HasField(HasField {
+            })),
+            Statement::HasField(Box::new(HasField {
                 name: "name".to_string(),
                 type_: TypeExpr::Named("String".to_string()),
                 default: None,
                 constraint: None,
                 span: Span::default(),
-            }),
-            Statement::HasField(HasField {
+            })),
+            Statement::HasField(Box::new(HasField {
                 name: "email".to_string(),
                 type_: TypeExpr::Generic {
                     name: "Option".to_string(),
@@ -117,8 +117,8 @@ fn test_codegen_gene_with_multiple_types() {
                 default: Some(Expr::Literal(Literal::Null)),
                 constraint: None,
                 span: Span::default(),
-            }),
-            Statement::HasField(HasField {
+            })),
+            Statement::HasField(Box::new(HasField {
                 name: "tags".to_string(),
                 type_: TypeExpr::Generic {
                     name: "List".to_string(),
@@ -127,7 +127,7 @@ fn test_codegen_gene_with_multiple_types() {
                 default: None,
                 constraint: None,
                 span: Span::default(),
-            }),
+            })),
         ],
         exegesis: "A user entity with various field types".to_string(),
         span: Span::default(),
@@ -795,13 +795,13 @@ fn test_codegen_type_mapping_nested_generics() {
 fn test_codegen_generate_all() {
     let gene = Gene {
         name: "Point".to_string(),
-        statements: vec![Statement::HasField(HasField {
+        statements: vec![Statement::HasField(Box::new(HasField {
             name: "x".to_string(),
             type_: TypeExpr::Named("Int32".to_string()),
             default: None,
             constraint: None,
             span: Span::default(),
-        })],
+        }))],
         exegesis: "A point".to_string(),
         span: Span::default(),
     };
@@ -955,13 +955,13 @@ fn test_codegen_naming_field_snake_case() {
     // Test that field names are converted to snake_case
     let gene = Gene {
         name: "Test".to_string(),
-        statements: vec![Statement::HasField(HasField {
+        statements: vec![Statement::HasField(Box::new(HasField {
             name: "MyField".to_string(),
             type_: TypeExpr::Named("Int32".to_string()),
             default: None,
             constraint: None,
             span: Span::default(),
-        })],
+        }))],
         exegesis: "Test".to_string(),
         span: Span::default(),
     };
