@@ -36,7 +36,10 @@ fn test_biology_types_exists() {
 #[test]
 fn test_biology_types_content() {
     assert!(
-        file_contains("types.dol", &["gene Vec3", "gene Nutrient", "gene Energy", "gene GeoTime"]),
+        file_contains(
+            "types.dol",
+            &["gene Vec3", "gene Nutrient", "gene Energy", "gene GeoTime"]
+        ),
         "types.dol should contain Vec3, Nutrient, Energy, and GeoTime genes"
     );
 }
@@ -52,7 +55,10 @@ fn test_hyphal_exists() {
 #[test]
 fn test_hyphal_content() {
     assert!(
-        file_contains("hyphal.dol", &["gene HyphalTip", "trait Hyphal", "impl Hyphal"]),
+        file_contains(
+            "hyphal.dol",
+            &["gene HyphalTip", "trait Hyphal", "impl Hyphal"]
+        ),
         "hyphal.dol should contain HyphalTip gene, Hyphal trait, and implementation"
     );
 }
@@ -68,7 +74,10 @@ fn test_transport_exists() {
 #[test]
 fn test_transport_content() {
     assert!(
-        file_contains("transport.dol", &["gene TransportNode", "gene Flow", "trait Transport"]),
+        file_contains(
+            "transport.dol",
+            &["gene TransportNode", "gene Flow", "trait Transport"]
+        ),
         "transport.dol should contain TransportNode, Flow, and Transport trait"
     );
 }
@@ -84,7 +93,10 @@ fn test_ecosystem_exists() {
 #[test]
 fn test_ecosystem_content() {
     assert!(
-        file_contains("ecosystem.dol", &["gene Species", "gene Interaction", "system Ecosystem"]),
+        file_contains(
+            "ecosystem.dol",
+            &["gene Species", "gene Interaction", "system Ecosystem"]
+        ),
         "ecosystem.dol should contain Species, Interaction, and Ecosystem system"
     );
 }
@@ -100,7 +112,10 @@ fn test_evolution_exists() {
 #[test]
 fn test_evolution_content() {
     assert!(
-        file_contains("evolution.dol", &["gene Trait", "gene Genome", "trait Evolvable", "evolves"]),
+        file_contains(
+            "evolution.dol",
+            &["gene Trait", "gene Genome", "trait Evolvable", "evolves"]
+        ),
         "evolution.dol should contain Trait, Genome, Evolvable, and evolves declarations"
     );
 }
@@ -116,7 +131,15 @@ fn test_mycelium_exists() {
 #[test]
 fn test_mycelium_content() {
     assert!(
-        file_contains("mycelium.dol", &["gene MyceliumNode", "system MyceliumNetwork", "fun from_spore", "fun grow"]),
+        file_contains(
+            "mycelium.dol",
+            &[
+                "gene MyceliumNode",
+                "system MyceliumNetwork",
+                "fun from_spore",
+                "fun grow"
+            ]
+        ),
         "mycelium.dol should contain MyceliumNode, MyceliumNetwork, from_spore, and grow"
     );
 }
@@ -132,7 +155,15 @@ fn test_module_index_exists() {
 #[test]
 fn test_module_index_content() {
     assert!(
-        file_contains("mod.dol", &["module biology", "pub use types", "pub use hyphal", "pub use mycelium"]),
+        file_contains(
+            "mod.dol",
+            &[
+                "module biology",
+                "pub use types",
+                "pub use hyphal",
+                "pub use mycelium"
+            ]
+        ),
         "mod.dol should re-export all biology submodules"
     );
 }
