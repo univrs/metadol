@@ -98,12 +98,15 @@ impl RustCodegen {
         // Struct definition
         output.push_str(&format!("{visibility}struct {struct_name} {{\n"));
 
-        for (field_name, field_type) in &fields {
+        for (field_name, field_type, _, _) in &fields {
             let rust_field = to_snake_case(field_name);
             output.push_str(&format!("    {visibility}{rust_field}: {field_type},\n"));
         }
 
-        output.push_str("}\n");
+        output.push_str("}\n\n");
+
+        // Generate impl block with constructor and validators
+        output.push_str(&self.gen_gene_impl(&struct_name, &fields));
 
         output
     }
@@ -270,19 +273,92 @@ impl RustCodegen {
         output
     }
 
+    /// Generate impl block for a gene struct.
+    fn gen_gene_impl(
+        &self,
+        struct_name: &str,
+        fields: &[(String, String, Option<Expr>, Option<Expr>)],
+    ) -> String {
+        let visibility = self.visibility_str();
+        let mut output = String::new();
+
+        output.push_str(&format!("impl {struct_name} {{\n"));
+
+        // Generate constructor
+        output.push_str(&format!("    {visibility}fn new("));
+        let params: Vec<String> = fields
+            .iter()
+            .map(|(name, ty, _, _)| format!("{}: {}", to_snake_case(name), ty))
+            .collect();
+        output.push_str(&params.join(", "));
+        output.push_str(") -> Self {\n");
+        output.push_str("        Self {\n");
+        for (name, _, _, _) in fields {
+            let field = to_snake_case(name);
+            output.push_str(&format!("            {field},\n"));
+        }
+        output.push_str("        }\n");
+        output.push_str("    }\n");
+
+        // Generate validators for fields with constraints
+        for (name, _, _, constraint) in fields {
+            if constraint.is_some() {
+                let field = to_snake_case(name);
+                output.push_str(&format!(
+                    "\n    {visibility}fn validate_{field}(&self) -> bool {{\n"
+                ));
+                output.push_str("        // TODO: Implement constraint validation\n");
+                output.push_str("        true\n");
+                output.push_str("    }\n");
+            }
+        }
+
+        // Generate validate_all if there are any constraints
+        let has_constraints = fields.iter().any(|(_, _, _, c)| c.is_some());
+        if has_constraints {
+            output.push_str(&format!(
+                "\n    {visibility}fn validate_all(&self) -> bool {{\n"
+            ));
+            for (name, _, _, constraint) in fields {
+                if constraint.is_some() {
+                    let field = to_snake_case(name);
+                    output.push_str(&format!("        if !self.validate_{field}() {{ return false; }}\n"));
+                }
+            }
+            output.push_str("        true\n");
+            output.push_str("    }\n");
+        }
+
+        output.push_str("}\n");
+        output
+    }
+
     // === Helper Methods ===
 
     /// Extract fields from statements (for structs).
-    fn extract_fields(&self, statements: &[Statement]) -> Vec<(String, String)> {
+    /// Returns (field_name, rust_type, optional_default, optional_constraint)
+    fn extract_fields(
+        &self,
+        statements: &[Statement],
+    ) -> Vec<(String, String, Option<Expr>, Option<Expr>)> {
         statements
             .iter()
-            .filter_map(|stmt| {
-                if let Statement::Has { property, .. } = stmt {
-                    // Default to String type for properties without type annotations
-                    Some((property.clone(), "String".to_string()))
-                } else {
-                    None
+            .filter_map(|stmt| match stmt {
+                Statement::Has { property, .. } => {
+                    // Legacy: Default to String type for properties without type annotations
+                    Some((property.clone(), "String".to_string(), None, None))
                 }
+                Statement::HasField(field) => {
+                    // New: Extract typed field with defaults and constraints
+                    let rust_type = Self::map_type_expr(&field.type_);
+                    Some((
+                        field.name.clone(),
+                        rust_type,
+                        field.default.clone(),
+                        field.constraint.clone(),
+                    ))
+                }
+                _ => None,
             })
             .collect()
     }
@@ -731,6 +807,41 @@ impl RustCodegen {
                 output.push('}');
                 output
             }
+            Expr::Lambda {
+                params,
+                return_type,
+                body,
+            } => {
+                let mut output = String::new();
+                output.push('|');
+
+                // Generate parameters with optional type annotations
+                let params_str: Vec<String> = params
+                    .iter()
+                    .map(|(name, type_ann)| {
+                        if let Some(ty) = type_ann {
+                            format!("{}: {}", name, Self::map_type_expr(ty))
+                        } else {
+                            name.clone()
+                        }
+                    })
+                    .collect();
+                output.push_str(&params_str.join(", "));
+                output.push('|');
+
+                // Add return type if specified
+                if let Some(ret_ty) = return_type {
+                    output.push_str(" -> ");
+                    output.push_str(&Self::map_type_expr(ret_ty));
+                }
+
+                // Generate body
+                output.push_str(" { ");
+                output.push_str(&self.gen_expr(body));
+                output.push_str(" }");
+
+                output
+            }
             _ => "/* unsupported expression */".to_string(),
         }
     }
@@ -738,18 +849,98 @@ impl RustCodegen {
     /// Generate Rust code for a literal.
     fn gen_literal(&self, lit: &Literal) -> String {
         match lit {
-            Literal::Int(n) => n.to_string(),
+            Literal::Int(n) => format!("{}_i64", n),
             Literal::Float(f) => {
                 if f.fract() == 0.0 {
-                    format!("{:.1}", f)
+                    format!("{:.1}_f64", f)
                 } else {
-                    f.to_string()
+                    format!("{}_f64", f)
                 }
             }
             Literal::Bool(b) => b.to_string(),
             Literal::String(s) => format!("\"{}\"", s),
             Literal::Null => "None".to_string(),
         }
+    }
+
+    /// Generate TypeInfo registration code for a gene.
+    ///
+    /// This generates code that registers runtime type information
+    /// for reflection and introspection.
+    ///
+    /// # Arguments
+    ///
+    /// * `gene` - The gene declaration to generate TypeInfo for
+    ///
+    /// # Returns
+    ///
+    /// Rust code that creates and registers a TypeInfo instance
+    ///
+    /// # Example Output
+    ///
+    /// ```ignore
+    /// TypeInfo::record("User")
+    ///     .with_field(FieldInfo::new("id", "Int64"))
+    ///     .with_field(FieldInfo::new("name", "String"))
+    ///     .with_doc("A user entity")
+    /// ```
+    pub fn gen_type_info(&self, gene: &Gene) -> String {
+        let type_name = to_pascal_case(&gene.name);
+        let mut output = String::new();
+
+        // Start TypeInfo::record call
+        output.push_str(&format!("    TypeInfo::record(\"{}\")\n", type_name));
+
+        // Add fields from "has" statements
+        for stmt in &gene.statements {
+            if let Statement::Has { property, .. } = stmt {
+                let field_name = to_snake_case(property);
+                // Default to String type - in a full implementation we'd infer types
+                output.push_str(&format!(
+                    "        .with_field(FieldInfo::new(\"{}\", \"String\"))\n",
+                    field_name
+                ));
+            }
+        }
+
+        // Add documentation from exegesis
+        if !gene.exegesis.trim().is_empty() {
+            let escaped_doc = gene.exegesis.replace('\"', "\\\"").replace('\n', " ");
+            output.push_str(&format!("        .with_doc(\"{}\")", escaped_doc));
+        }
+
+        output
+    }
+
+    /// Generate TypeInfo registration for all declarations in a module.
+    ///
+    /// This generates a function that populates a TypeRegistry with
+    /// type information for all genes and types in the module.
+    ///
+    /// # Arguments
+    ///
+    /// * `decls` - The declarations to generate registration code for
+    ///
+    /// # Returns
+    ///
+    /// Rust code that defines a registration function
+    pub fn gen_type_registry(&self, decls: &[Declaration]) -> String {
+        let mut output = String::new();
+
+        output.push_str("/// Register all type information in the type registry.\n");
+        output.push_str("pub fn register_types(registry: &mut TypeRegistry) {\n");
+
+        for decl in decls {
+            if let Declaration::Gene(gene) = decl {
+                output.push_str(&format!(
+                    "    registry.register(\n{}\n    );\n\n",
+                    self.gen_type_info(gene)
+                ));
+            }
+        }
+
+        output.push_str("}\n");
+        output
     }
 }
 
@@ -1062,7 +1253,7 @@ mod tests {
         };
 
         let output = gen.gen_constant(&var);
-        assert!(output.contains("const MAX_SIZE: i64 = 100;"));
+        assert!(output.contains("const MAX_SIZE: i64 = 100_i64;"));
     }
 
     #[test]
@@ -1078,7 +1269,7 @@ mod tests {
         };
 
         let output = gen.gen_global_var(&var);
-        assert!(output.contains("static mut COUNTER: i64 = 0;"));
+        assert!(output.contains("static mut COUNTER: i64 = 0_i64;"));
     }
 
     #[test]
@@ -1122,9 +1313,9 @@ mod tests {
     #[test]
     fn test_gen_literal() {
         let gen = RustCodegen::new();
-        assert_eq!(gen.gen_literal(&Literal::Int(42)), "42");
-        assert_eq!(gen.gen_literal(&Literal::Float(2.5)), "2.5");
-        assert_eq!(gen.gen_literal(&Literal::Float(3.0)), "3.0");
+        assert_eq!(gen.gen_literal(&Literal::Int(42)), "42_i64");
+        assert_eq!(gen.gen_literal(&Literal::Float(2.5)), "2.5_f64");
+        assert_eq!(gen.gen_literal(&Literal::Float(3.0)), "3.0_f64");
         assert_eq!(gen.gen_literal(&Literal::Bool(true)), "true");
         assert_eq!(
             gen.gen_literal(&Literal::String("hello".to_string())),
@@ -1173,7 +1364,7 @@ mod tests {
         let output = gen.gen_sex_function(crate::ast::Visibility::Public, &func);
         assert!(output.contains("/// Side-effectful function"));
         assert!(output.contains("pub fn mutate(x: i32) -> i32"));
-        assert!(output.contains("return (x + 1);"));
+        assert!(output.contains("return (x + 1_i64);"));
     }
 
     #[test]
@@ -1184,7 +1375,7 @@ mod tests {
             op: crate::ast::BinaryOp::Mul,
             right: Box::new(Expr::Literal(Literal::Int(3))),
         };
-        assert_eq!(gen.gen_expr(&expr), "(2 * 3)");
+        assert_eq!(gen.gen_expr(&expr), "(2_i64 * 3_i64)");
     }
 
     #[test]
@@ -1197,6 +1388,259 @@ mod tests {
                 Expr::Literal(Literal::Int(2)),
             ],
         };
-        assert_eq!(gen.gen_expr(&expr), "foo(1, 2)");
+        assert_eq!(gen.gen_expr(&expr), "foo(1_i64, 2_i64)");
+    }
+
+    // === Lambda Expression Tests ===
+
+    #[test]
+    fn test_gen_lambda_simple() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![("x".to_string(), None)],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Add,
+                right: Box::new(Expr::Literal(Literal::Int(1))),
+            }),
+        };
+        assert_eq!(gen.gen_expr(&expr), "|x| { (x + 1_i64) }");
+    }
+
+    #[test]
+    fn test_gen_lambda_with_type() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![("x".to_string(), Some(TypeExpr::Named("Int32".to_string())))],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Mul,
+                right: Box::new(Expr::Literal(Literal::Int(2))),
+            }),
+        };
+        assert_eq!(gen.gen_expr(&expr), "|x: i32| { (x * 2_i64) }");
+    }
+
+    #[test]
+    fn test_gen_lambda_multiple_params() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![
+                ("x".to_string(), Some(TypeExpr::Named("Int32".to_string()))),
+                ("y".to_string(), Some(TypeExpr::Named("Int32".to_string()))),
+            ],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Add,
+                right: Box::new(Expr::Identifier("y".to_string())),
+            }),
+        };
+        assert_eq!(gen.gen_expr(&expr), "|x: i32, y: i32| { (x + y) }");
+    }
+
+    #[test]
+    fn test_gen_lambda_with_return_type() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![("x".to_string(), Some(TypeExpr::Named("Int32".to_string())))],
+            return_type: Some(TypeExpr::Named("Int32".to_string())),
+            body: Box::new(Expr::Identifier("x".to_string())),
+        };
+        assert_eq!(gen.gen_expr(&expr), "|x: i32| -> i32 { x }");
+    }
+
+    #[test]
+    fn test_gen_lambda_with_block_body() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![("x".to_string(), None)],
+            return_type: None,
+            body: Box::new(Expr::Block {
+                statements: vec![Stmt::Let {
+                    name: "doubled".to_string(),
+                    type_ann: None,
+                    value: Expr::Binary {
+                        left: Box::new(Expr::Identifier("x".to_string())),
+                        op: crate::ast::BinaryOp::Mul,
+                        right: Box::new(Expr::Literal(Literal::Int(2))),
+                    },
+                }],
+                final_expr: Some(Box::new(Expr::Identifier("doubled".to_string()))),
+            }),
+        };
+        let result = gen.gen_expr(&expr);
+        assert!(result.starts_with("|x| {"));
+        assert!(result.contains("let doubled = (x * 2_i64);"));
+        assert!(result.contains("doubled"));
+    }
+
+    #[test]
+    fn test_gen_lambda_no_params() {
+        let gen = RustCodegen::new();
+        let expr = Expr::Lambda {
+            params: vec![],
+            return_type: None,
+            body: Box::new(Expr::Literal(Literal::Int(42))),
+        };
+        assert_eq!(gen.gen_expr(&expr), "|| { 42_i64 }");
+    }
+
+    #[test]
+    fn test_gen_lambda_nested() {
+        let gen = RustCodegen::new();
+        // Create a lambda that returns another lambda: |x| |y| x + y
+        let inner_lambda = Expr::Lambda {
+            params: vec![("y".to_string(), None)],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Add,
+                right: Box::new(Expr::Identifier("y".to_string())),
+            }),
+        };
+        let outer_lambda = Expr::Lambda {
+            params: vec![("x".to_string(), None)],
+            return_type: None,
+            body: Box::new(inner_lambda),
+        };
+        assert_eq!(gen.gen_expr(&outer_lambda), "|x| { |y| { (x + y) } }");
+    }
+
+    // === Method Call Tests ===
+
+    #[test]
+    fn test_gen_method_call_simple() {
+        let gen = RustCodegen::new();
+        // obj.method(arg)
+        let expr = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Identifier("obj".to_string())),
+                field: "method".to_string(),
+            }),
+            args: vec![Expr::Literal(Literal::Int(42))],
+        };
+        assert_eq!(gen.gen_expr(&expr), "obj.method(42_i64)");
+    }
+
+    #[test]
+    fn test_gen_method_call_no_args() {
+        let gen = RustCodegen::new();
+        // obj.get()
+        let expr = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Identifier("obj".to_string())),
+                field: "get".to_string(),
+            }),
+            args: vec![],
+        };
+        assert_eq!(gen.gen_expr(&expr), "obj.get()");
+    }
+
+    #[test]
+    fn test_gen_method_call_multiple_args() {
+        let gen = RustCodegen::new();
+        // obj.calculate(1, 2, 3)
+        let expr = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Identifier("obj".to_string())),
+                field: "calculate".to_string(),
+            }),
+            args: vec![
+                Expr::Literal(Literal::Int(1)),
+                Expr::Literal(Literal::Int(2)),
+                Expr::Literal(Literal::Int(3)),
+            ],
+        };
+        assert_eq!(gen.gen_expr(&expr), "obj.calculate(1_i64, 2_i64, 3_i64)");
+    }
+
+    #[test]
+    fn test_gen_method_call_chained() {
+        let gen = RustCodegen::new();
+        // obj.method1().method2(42)
+        let inner_call = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Identifier("obj".to_string())),
+                field: "method1".to_string(),
+            }),
+            args: vec![],
+        };
+        let outer_call = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(inner_call),
+                field: "method2".to_string(),
+            }),
+            args: vec![Expr::Literal(Literal::Int(42))],
+        };
+        assert_eq!(
+            gen.gen_expr(&outer_call),
+            "obj.method1().method2(42_i64)"
+        );
+    }
+
+    #[test]
+    fn test_gen_method_call_on_member() {
+        let gen = RustCodegen::new();
+        // obj.field.method(arg)
+        let expr = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Member {
+                    object: Box::new(Expr::Identifier("obj".to_string())),
+                    field: "field".to_string(),
+                }),
+                field: "method".to_string(),
+            }),
+            args: vec![Expr::Literal(Literal::String("test".to_string()))],
+        };
+        assert_eq!(gen.gen_expr(&expr), "obj.field.method(\"test\")");
+    }
+
+    #[test]
+    fn test_gen_lambda_as_argument() {
+        let gen = RustCodegen::new();
+        // map(|x| x + 1)
+        let lambda = Expr::Lambda {
+            params: vec![("x".to_string(), None)],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Add,
+                right: Box::new(Expr::Literal(Literal::Int(1))),
+            }),
+        };
+        let call = Expr::Call {
+            callee: Box::new(Expr::Identifier("map".to_string())),
+            args: vec![lambda],
+        };
+        assert_eq!(gen.gen_expr(&call), "map(|x| { (x + 1_i64) })");
+    }
+
+    #[test]
+    fn test_gen_lambda_in_method_call() {
+        let gen = RustCodegen::new();
+        // collection.map(|x| x * 2)
+        let lambda = Expr::Lambda {
+            params: vec![("x".to_string(), None)],
+            return_type: None,
+            body: Box::new(Expr::Binary {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                op: crate::ast::BinaryOp::Mul,
+                right: Box::new(Expr::Literal(Literal::Int(2))),
+            }),
+        };
+        let method_call = Expr::Call {
+            callee: Box::new(Expr::Member {
+                object: Box::new(Expr::Identifier("collection".to_string())),
+                field: "map".to_string(),
+            }),
+            args: vec![lambda],
+        };
+        assert_eq!(
+            gen.gen_expr(&method_call),
+            "collection.map(|x| { (x * 2_i64) })"
+        );
     }
 }

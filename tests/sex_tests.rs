@@ -568,7 +568,7 @@ fn test_codegen_constant() {
     };
 
     let output = gen.gen_constant(&var);
-    assert!(output.contains("const MAX_SIZE: i64 = 100;"));
+    assert!(output.contains("const MAX_SIZE: i64 = 100_i64;"));
 }
 
 #[test]
@@ -584,7 +584,7 @@ fn test_codegen_global_var() {
     };
 
     let output = gen.gen_global_var(&var);
-    assert!(output.contains("static mut COUNTER: i64 = 0;"));
+    assert!(output.contains("static mut COUNTER: i64 = 0_i64;"));
 }
 
 #[test]

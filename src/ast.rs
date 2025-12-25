@@ -312,6 +312,9 @@ impl Declaration {
                     ids.push(subject.clone());
                     ids.push(property.clone());
                 }
+                Statement::HasField(field) => {
+                    ids.push(field.name.clone());
+                }
                 Statement::Is { subject, state, .. } => {
                     ids.push(subject.clone());
                     ids.push(state.clone());
@@ -610,6 +613,9 @@ pub enum Statement {
         /// Source location
         span: Span,
     },
+
+    /// Typed field declaration: `subject has field: Type [= default] [where constraint]`
+    HasField(HasField),
 
     /// State or behavior: `subject is state`
     Is {
