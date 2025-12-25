@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: DOL Documentation
+    url: https://github.com/univrs/dol/tree/main/docs
+    about: Check the docs for answers to common questions
+  - name: DOL Specification
+    url: https://github.com/univrs/dol/blob/main/docs/specification.md
+    about: Read the language specification
+  - name: Discussions
+    url: https://github.com/univrs/dol/discussions
+    about: Ask questions and discuss DOL features
