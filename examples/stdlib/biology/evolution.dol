@@ -10,7 +10,7 @@ use biology.types.{ GeoTime, Generation }
 pub gene Trait {
   has name: String
   has value: Float64
-  has heritability: Float64  // 0.0 - 1.0
+  has heritability: Float64
   has mutation_rate: Float64
 
   constraint heritability_bounds {
@@ -21,14 +21,11 @@ pub gene Trait {
     this.mutation_rate >= 0.0 && this.mutation_rate <= 1.0
   }
 
-  /// Inherit trait with possible mutation
   fun inherit(parent_value: Float64) -> Trait {
-    // Heritability determines how much of parent value is kept
     inherited = parent_value * this.heritability
 
-    // Mutation adds variance
     mutation = if random() < this.mutation_rate {
-      (random() - 0.5) * 0.1  // Small random change
+      (random() - 0.5) * 0.1
     } else {
       0.0
     }
@@ -54,26 +51,21 @@ pub gene Genome {
     this.fitness >= 0.0
   }
 
-  /// Calculate fitness from traits (placeholder)
   fun calculate_fitness(environment: Environment) -> Float64 {
-    // Fitness is environment-dependent
     total = 0.0
     for (name, trait) in this.traits {
       optimal = environment.optimal_values.get(name).unwrap_or(0.5)
       distance = (trait.value - optimal).abs()
-      total += 1.0 - distance  // Closer to optimal = higher fitness
+      total += 1.0 - distance
     }
     return total / this.traits.len() as Float64
   }
 
-  /// Sexual reproduction (recombination)
   fun recombine(other: Genome) -> Genome {
     new_traits = Map.new()
     for (name, trait) in this.traits {
       other_trait = other.traits.get(name)
-      // 50% chance to inherit from each parent
       chosen = if random() < 0.5 { trait } else { other_trait }
-      // Then possibly mutate
       new_traits.insert(name, chosen.inherit(chosen.value))
     }
     return Genome { traits: new_traits, fitness: 0.0 }
@@ -89,7 +81,7 @@ pub gene Genome {
 pub gene Lineage {
   has ancestor_id: Option<UInt64>
   has divergence_time: GeoTime
-  has innovations: List<String>  // Key evolutionary innovations
+  has innovations: List<String>
 
   exegesis {
     Tracks evolutionary lineage and innovations.
@@ -99,21 +91,12 @@ pub gene Lineage {
 
 /// Trait for entities that can evolve
 pub trait Evolvable {
-  /// Mutate traits
   is mutate(rate: Float64) -> Self
-
-  /// Reproduce with recombination
   is reproduce(other: Self) -> Self
-
-  /// Calculate fitness in environment
   is fitness(env: Environment) -> Float64
-
-  /// Check if speciation should occur
   is should_speciate(population: List<Self>) -> Bool
 
   law fitness_inheritance {
-    // Offspring fitness correlates with parent fitness
-    // (but not perfectly due to recombination and mutation)
     forall p1: Self, p2: Self.
       offspring = p1.reproduce(p2).
       offspring.fitness(env) is_correlated_with
@@ -121,7 +104,6 @@ pub trait Evolvable {
   }
 
   law speciation_requires_isolation {
-    // Speciation requires some form of isolation
     forall population: List<Self>.
       self.should_speciate(population) implies
         (reproductive_isolation(self, population) > threshold)
@@ -133,9 +115,7 @@ pub trait Evolvable {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────
 // Using DOL's evolves keyword for speciation
-// ─────────────────────────────────────────────────────────────────
 
 /// Base organism
 pub gene Organism {
@@ -157,7 +137,6 @@ evolves Organism > Prokaryote @ 3.5Gya {
   added circular_chromosome: Bool = true
 
   constraint no_nucleus {
-    // Prokaryotes lack membrane-bound nucleus
     not this.has_nucleus
   }
 
@@ -194,7 +173,6 @@ evolves Organism > Eukaryote @ 2.0Gya {
   }
 
   constraint has_mitochondria {
-    // All eukaryotes have mitochondria (or remnants)
     this.mitochondria.len() >= 1
   }
 
@@ -229,7 +207,6 @@ evolves Eukaryote > Fungus @ 1.0Gya {
   removed chloroplasts
 
   constraint heterotrophic {
-    // Fungi are heterotrophs (cannot photosynthesize)
     not this.can_photosynthesize
   }
 

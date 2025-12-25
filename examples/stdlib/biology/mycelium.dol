@@ -15,7 +15,7 @@ pub gene MyceliumNode {
   has position: Vec3
   has tips: List<HyphalTip>
   has stored_nutrients: Nutrient
-  has connections: List<UInt64>  // Connected node IDs
+  has connections: List<UInt64>
 
   fun is_branching_point() -> Bool {
     return this.connections.len() > 2
@@ -43,33 +43,21 @@ pub system MyceliumNetwork {
   state total_biomass: Float64
   state generation: UInt64
 
-  // ─────────────────────────────────────────────────────────────
-  // Network Constraints
-  // ─────────────────────────────────────────────────────────────
-
   constraint network_connected {
-    // Network must be fully connected
     forall node1, node2 in this.nodes.values().
       exists_path(node1, node2)
   }
 
   constraint biomass_conservation {
-    // Total biomass equals sum of node biomass
     this.total_biomass ==
       sum(this.nodes.values().map(|n| n.stored_nutrients.total_mass()))
   }
 
   constraint transport_capacity {
-    // Transport limited by edge diameter
     forall edge in this.edges.
       edge.transport_capacity <= edge.diameter * 10.0
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Network Growth Functions
-  // ─────────────────────────────────────────────────────────────
-
-  /// Initialize network from spore
   pub fun from_spore(position: Vec3) -> MyceliumNetwork {
     initial_tip = HyphalTip {
       position: position,
@@ -96,7 +84,6 @@ pub system MyceliumNetwork {
     }
   }
 
-  /// Grow network one time step
   pub fun grow(nutrient_field: Gradient<Nutrient>) -> MyceliumNetwork {
     new_nodes = Map.new()
     new_edges = this.edges.clone()
@@ -106,15 +93,12 @@ pub system MyceliumNetwork {
       new_tips = []
 
       for tip in node.tips {
-        // Extend tip toward nutrients
         extended = tip.extend(nutrient_field)
 
-        // Check for branching
         if extended.branching_potential > 2.0 {
           branches = extended.branch(2.0)
           for branch in branches {
             new_tips.push(branch)
-            // Create new node at branch point
             new_node = MyceliumNode {
               id: next_id,
               position: branch.position,
@@ -124,7 +108,6 @@ pub system MyceliumNetwork {
             }
             new_nodes.insert(next_id, new_node)
 
-            // Add edge
             new_edges.push(HyphalSegment {
               start: node.position,
               end: branch.position,
@@ -139,10 +122,8 @@ pub system MyceliumNetwork {
         }
       }
 
-      // Check for anastomosis (fusion)
       for other_id in this.find_nearby_nodes(node.position, 0.5) {
         if other_id != id && not node.connections.contains(other_id) {
-          // Fuse networks
           node.connections.push(other_id)
           other_node = this.nodes.get(other_id)
           other_node.connections.push(id)
@@ -164,7 +145,6 @@ pub system MyceliumNetwork {
     }
   }
 
-  /// Find nodes within distance
   fun find_nearby_nodes(pos: Vec3, max_dist: Float64) -> List<UInt64> {
     result = []
     for (id, node) in this.nodes {
@@ -179,16 +159,13 @@ pub system MyceliumNetwork {
     return result
   }
 
-  /// Calculate total network biomass
   fun calculate_biomass() -> Float64 {
     node_mass = sum(this.nodes.values().map(|n| n.stored_nutrients.total_mass()))
     edge_mass = sum(this.edges.map(|e| e.length() * e.diameter * 0.1))
     return node_mass + edge_mass
   }
 
-  /// Check if network is ready to fruit
   pub fun can_fruit() -> Bool {
-    // Fruiting requires sufficient biomass and network complexity
     return this.total_biomass > 100.0 &&
            this.nodes.len() > 50 &&
            this.has_enough_branching_points()
@@ -201,7 +178,6 @@ pub system MyceliumNetwork {
     return branch_count > 10
   }
 
-  /// Visualize network as DOT graph
   pub fun to_dot() -> String {
     mut output = "digraph Mycelium {\n"
 
@@ -213,7 +189,6 @@ pub system MyceliumNetwork {
     }
 
     for edge in this.edges {
-      // Find node IDs from positions (simplified)
       output += "  /* edge */\n"
     }
 

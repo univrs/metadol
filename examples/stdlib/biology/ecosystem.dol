@@ -9,11 +9,11 @@ use biology.types.{ Energy, Nutrient, Generation }
 /// Species role in ecosystem
 pub gene TrophicRole {
   type: enum {
-    Producer,                    // Autotrophs (plants, algae)
-    PrimaryConsumer,             // Herbivores
-    SecondaryConsumer,           // Carnivores eating herbivores
-    TertiaryConsumer,            // Apex predators
-    Decomposer                   // Fungi, bacteria
+    Producer,
+    PrimaryConsumer,
+    SecondaryConsumer,
+    TertiaryConsumer,
+    Decomposer
   }
 
   fun trophic_level() -> UInt8 {
@@ -22,7 +22,7 @@ pub gene TrophicRole {
       PrimaryConsumer { return 2 }
       SecondaryConsumer { return 3 }
       TertiaryConsumer { return 4 }
-      Decomposer { return 0 }  // Special: recycles
+      Decomposer { return 0 }
     }
   }
 
@@ -50,7 +50,6 @@ pub gene Species {
     this.population >= 0
   }
 
-  /// Logistic growth rate
   fun growth_rate() -> Float64 {
     r = this.birth_rate - this.death_rate
     k = this.carrying_capacity as Float64
@@ -66,8 +65,8 @@ pub gene Species {
 
 /// Interaction between species
 pub gene Interaction {
-  has predator: UInt64  // species id
-  has prey: UInt64      // species id
+  has predator: UInt64
+  has prey: UInt64
   has attack_rate: Float64
   has handling_time: Float64
   has conversion_efficiency: Float64
@@ -77,7 +76,6 @@ pub gene Interaction {
     this.conversion_efficiency <= 1.0
   }
 
-  /// Holling Type II functional response
   fun predation_rate(prey_density: Float64) -> Float64 {
     return (this.attack_rate * prey_density) /
            (1.0 + this.attack_rate * this.handling_time * prey_density)
@@ -100,17 +98,12 @@ pub system Ecosystem {
   state nutrient_pool: Nutrient
   state generation: Generation
 
-  // ─────────────────────────────────────────────────────────────
-  // Ecological Constraints (Laws of Nature)
-  // ─────────────────────────────────────────────────────────────
-
   constraint trophic_efficiency {
-    // Energy transfer between trophic levels <= 10%
     for level in 1..4 {
       energy_at_level = this.energy_at_trophic_level(level)
       energy_at_next = this.energy_at_trophic_level(level + 1)
 
-      energy_at_next <= energy_at_level * 0.15  // Allow up to 15%
+      energy_at_next <= energy_at_level * 0.15
     }
 
     exegesis {
@@ -120,9 +113,8 @@ pub system Ecosystem {
   }
 
   constraint carrying_capacity_limit {
-    // Total population limited by resources
     for sp in this.species.values() {
-      sp.population <= sp.carrying_capacity * 1.1  // Allow 10% overshoot
+      sp.population <= sp.carrying_capacity * 1.1
     }
 
     exegesis {
@@ -132,23 +124,19 @@ pub system Ecosystem {
   }
 
   constraint predator_prey_balance {
-    // Lotka-Volterra inspired: predators need prey
     for interaction in this.interactions {
       predator = this.species.get(interaction.predator)
       prey = this.species.get(interaction.prey)
 
-      // Predators decline if prey is scarce
       predator.population > 0 implies prey.population > 0
     }
 
     exegesis {
       Predators cannot persist without prey.
-      Models predator-prey dependency.
     }
   }
 
   constraint decomposer_recycling {
-    // Decomposers recycle nutrients back to producers
     decomposer_count = this.species.values()
       .filter(|s| s.role == TrophicRole.Decomposer)
       .map(|s| s.population)
@@ -159,23 +147,15 @@ pub system Ecosystem {
 
     exegesis {
       Decomposers are essential for nutrient cycling.
-      Without them, nutrients become locked in dead matter.
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Ecosystem Functions
-  // ─────────────────────────────────────────────────────────────
-
-  /// Advance ecosystem by one time step (Lotka-Volterra)
   fun tick() -> Self {
     new_species = Map.new()
 
     for (id, sp) in this.species {
-      // Calculate population change
       growth = sp.growth_rate()
 
-      // Add predation effects
       predation_loss = 0.0
       predation_gain = 0.0
 
@@ -193,7 +173,6 @@ pub system Ecosystem {
         }
       }
 
-      // Update population
       delta = growth - predation_loss + predation_gain
       new_pop = max(0, (sp.population as Float64 + delta) as UInt64)
 
@@ -207,17 +186,14 @@ pub system Ecosystem {
     }
   }
 
-  /// Calculate energy at a trophic level
   fun energy_at_trophic_level(level: UInt8) -> Float64 {
     return this.species.values()
       .filter(|s| s.role.trophic_level() == level)
-      .map(|s| s.population as Float64 * 1.0)  // Energy per individual
+      .map(|s| s.population as Float64 * 1.0)
       .sum()
   }
 
-  /// Check if ecosystem is stable (attractor reached)
   fun is_stable(tolerance: Float64) -> Bool {
-    // Run one tick and compare
     next = this.tick()
 
     for (id, sp) in this.species {
@@ -231,9 +207,7 @@ pub system Ecosystem {
     return true
   }
 
-  /// Add a keystone species (stabilizes ecosystem)
   fun add_keystone(species: Species) -> Self {
-    // Keystone species have outsized effects
     return Ecosystem {
       ...this,
       species: this.species.insert(species.id, species)

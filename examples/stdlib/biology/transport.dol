@@ -15,7 +15,6 @@ pub gene TransportNode<T> {
   has is_sink: Bool
 
   constraint valid_role {
-    // Can be source, sink, both, or neither (relay)
     true
   }
 
@@ -35,7 +34,7 @@ pub gene Flow<T> {
   has from_id: UInt64
   has to_id: UInt64
   has amount: T
-  has rate: Float64  // units per time
+  has rate: Float64
 
   constraint positive_rate {
     this.rate > 0.0
@@ -67,22 +66,18 @@ pub trait Transport<T> {
   // ─────────────────────────────────────────────────────────────
 
   law mass_conservation {
-    // Total mass in network is constant (closed system)
-    // Or: inflow == outflow + accumulation (open system)
     forall network: Self.
       network.total_inflow() ==
         network.total_outflow() + network.accumulation()
   }
 
   law flow_continuity {
-    // Flow into a node equals flow out (for relays)
     forall node: TransportNode<T>.
       node.is_relay() implies
         node.inflow() == node.outflow()
   }
 
   law capacity_respected {
-    // Flow cannot exceed pipe capacity
     forall flow: Flow<T>, edge: Edge.
       flow.amount <= edge.capacity
   }
