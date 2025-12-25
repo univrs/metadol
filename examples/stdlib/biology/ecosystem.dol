@@ -105,7 +105,7 @@ pub system Ecosystem {
   // ─────────────────────────────────────────────────────────────
 
   constraint trophic_efficiency {
-    // Energy transfer between trophic levels ≈ 10%
+    // Energy transfer between trophic levels <= 10%
     for level in 1..4 {
       energy_at_level = this.energy_at_trophic_level(level)
       energy_at_next = this.energy_at_trophic_level(level + 1)
