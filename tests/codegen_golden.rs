@@ -1,8 +1,8 @@
 //! Golden file tests for code generation
 //! Compare generated output against expected files
 
-use dol::codegen::rust::RustCodegen;
-use dol::parser::Parser;
+use metadol::codegen::RustCodegen;
+use metadol::parser::Parser;
 
 fn normalize(s: &str) -> String {
     s.lines()
@@ -24,8 +24,13 @@ macro_rules! golden_test {
             ));
 
             let ast = Parser::new(input).parse_file().expect("Parse failed");
-            let mut codegen = RustCodegen::new();
-            let actual = codegen.generate(&ast);
+            // Use static method form since generate takes &Declaration
+            let actual = ast
+                .declarations
+                .iter()
+                .map(|decl| RustCodegen::generate(decl))
+                .collect::<Vec<_>>()
+                .join("\n\n");
 
             assert_eq!(
                 normalize(&actual),

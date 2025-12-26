@@ -1,8 +1,40 @@
 # DOL vs Rust AST Mismatch Table
 
-> **Status:** AUDIT IN PROGRESS  
-> **Last Updated:** December 2025  
+> **Status:** AUDIT IN PROGRESS
+> **Last Updated:** December 26, 2025
 > **Purpose:** Track every difference between DOL source expectations and Rust AST implementation
+
+## Current Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stage2 Compilation Errors | 524 |
+| Main Test Suite | 286 passing (278 lib + 8 biology) |
+| Exhaustive Tests | 147 passing (80 lexer + 67 parser) |
+| Codegen Golden Tests | 3 failing |
+
+### Stage2 Error Breakdown
+
+| Error Code | Count | Category |
+|------------|-------|----------|
+| E0308 (type mismatch) | 112 | Type mapping issues |
+| E0425 (undefined) | 23 | Missing variables/fields |
+| E0599 (no method/variant) | 30+ | Missing enum variants |
+| E0532 (pattern mismatch) | 3+ | Unit vs tuple variants |
+| E0061 (arg count) | 9 | Constructor signatures |
+| E0618 (not a function) | 8 | Type confusion |
+
+---
+
+## Critical Lexer Issues
+
+These issues prevent proper expression parsing:
+
+| Issue | Expected | Current | Impact |
+|-------|----------|---------|--------|
+| Numeric literals | `TokenKind::Number` for `42` | `TokenKind::Identifier("42")` | Parser cannot create Literal nodes |
+| Qualified identifiers | `[Ident, Dot, Ident]` for `obj.field` | Single `Identifier("obj.field")` | No Expr::Member for field access |
+| Block comments | Skip `/* ... */` | Parse as Slash, Star tokens | Comments break parsing |
 
 ---
 
