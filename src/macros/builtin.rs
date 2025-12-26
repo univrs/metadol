@@ -1323,6 +1323,7 @@ fn stringify_expr(expr: &Expr) -> String {
                 crate::ast::BinaryOp::Map => "<$>",
                 crate::ast::BinaryOp::Ap => "<*>",
                 crate::ast::BinaryOp::Implies => "=>",
+                crate::ast::BinaryOp::Range => "..",
             };
             format!(
                 "({} {} {})",
@@ -1337,6 +1338,7 @@ fn stringify_expr(expr: &Expr) -> String {
                 crate::ast::UnaryOp::Not => "!",
                 crate::ast::UnaryOp::Quote => "'",
                 crate::ast::UnaryOp::Reflect => "?",
+                crate::ast::UnaryOp::Deref => "*",
             };
             format!("{}{}", op_str, stringify_expr(operand))
         }
@@ -1417,6 +1419,16 @@ fn stringify_expr(expr: &Expr) -> String {
         Expr::List(elements) => {
             let elems_str: Vec<String> = elements.iter().map(stringify_expr).collect();
             format!("[{}]", elems_str.join(", "))
+        }
+        Expr::Tuple(elements) => {
+            let elems_str: Vec<String> = elements.iter().map(stringify_expr).collect();
+            format!("({})", elems_str.join(", "))
+        }
+        Expr::Cast { expr, target_type } => {
+            format!("{} as {:?}", stringify_expr(expr), target_type)
+        }
+        Expr::Try(inner) => {
+            format!("{}?", stringify_expr(inner))
         }
     }
 }

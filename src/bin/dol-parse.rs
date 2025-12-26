@@ -273,6 +273,7 @@ fn output_json(results: &[ParseResult], _args: &Args) {
                 Declaration::Constraint(_) => "constraint".to_string(),
                 Declaration::System(_) => "system".to_string(),
                 Declaration::Evolution(_) => "evolution".to_string(),
+                Declaration::Function(_) => "function".to_string(),
             }),
             name: r.declaration.as_ref().map(|d| d.name().to_string()),
             error: r.error.clone(),
@@ -339,6 +340,7 @@ fn output_compact(results: &[ParseResult], _args: &Args) {
                 Declaration::Constraint(_) => "constraint",
                 Declaration::System(_) => "system",
                 Declaration::Evolution(_) => "evolution",
+                Declaration::Function(_) => "function",
             };
             println!(
                 "OK\t{}\t{}\t{}",
@@ -413,6 +415,13 @@ fn print_declaration_summary(decl: &Declaration) {
                 e.version,
                 e.parent_version,
                 e.additions.len()
+            );
+        }
+        Declaration::Function(f) => {
+            println!(
+                "    {} function with {} params",
+                f.name.dimmed(),
+                f.params.len()
             );
         }
     }

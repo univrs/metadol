@@ -40,6 +40,11 @@ pub trait Visitor {
     /// Visit an evolution.
     fn visit_evolution(&mut self, _evo: &Evolution) {}
 
+    /// Visit a top-level function declaration.
+    fn visit_function_decl(&mut self, func: &crate::ast::FunctionDecl) {
+        walk_function_decl(self, func);
+    }
+
     /// Visit a statement.
     fn visit_statement(&mut self, _stmt: &Statement) {}
 
@@ -115,6 +120,11 @@ pub trait MutVisitor {
     /// Transform an evolution.
     fn visit_evolution(&mut self, _evo: &mut Evolution) {}
 
+    /// Transform a top-level function declaration.
+    fn visit_function_decl(&mut self, func: &mut crate::ast::FunctionDecl) {
+        walk_function_decl_mut(self, func);
+    }
+
     /// Transform a statement.
     fn visit_statement(&mut self, _stmt: &mut Statement) {}
 
@@ -155,6 +165,14 @@ fn walk_declaration<V: Visitor + ?Sized>(v: &mut V, decl: &Declaration) {
         Declaration::Constraint(c) => v.visit_constraint(c),
         Declaration::System(sys) => v.visit_system(sys),
         Declaration::Evolution(evo) => v.visit_evolution(evo),
+        Declaration::Function(func) => v.visit_function_decl(func),
+    }
+}
+
+fn walk_function_decl<V: Visitor + ?Sized>(v: &mut V, func: &crate::ast::FunctionDecl) {
+    // Walk the function body
+    for stmt in &func.body {
+        v.visit_stmt(stmt);
     }
 }
 
@@ -306,6 +324,17 @@ fn walk_expr<V: Visitor + ?Sized>(v: &mut V, expr: &Expr) {
                 v.visit_expr(elem);
             }
         }
+        Expr::Tuple(elements) => {
+            for elem in elements {
+                v.visit_expr(elem);
+            }
+        }
+        Expr::Cast { expr, .. } => {
+            v.visit_expr(expr);
+        }
+        Expr::Try(inner) => {
+            v.visit_expr(inner);
+        }
     }
 }
 
@@ -324,6 +353,11 @@ fn walk_pattern<V: Visitor + ?Sized>(v: &mut V, pattern: &Pattern) {
                 v.visit_pattern(p);
             }
         }
+        Pattern::Or(patterns) => {
+            for p in patterns {
+                v.visit_pattern(p);
+            }
+        }
     }
 }
 
@@ -336,6 +370,14 @@ fn walk_declaration_mut<V: MutVisitor + ?Sized>(v: &mut V, decl: &mut Declaratio
         Declaration::Constraint(c) => v.visit_constraint(c),
         Declaration::System(sys) => v.visit_system(sys),
         Declaration::Evolution(evo) => v.visit_evolution(evo),
+        Declaration::Function(func) => v.visit_function_decl(func),
+    }
+}
+
+fn walk_function_decl_mut<V: MutVisitor + ?Sized>(v: &mut V, func: &mut crate::ast::FunctionDecl) {
+    // Walk the function body
+    for stmt in &mut func.body {
+        v.visit_stmt(stmt);
     }
 }
 
@@ -484,6 +526,17 @@ fn walk_expr_mut<V: MutVisitor + ?Sized>(v: &mut V, expr: &mut Expr) {
                 v.visit_expr(elem);
             }
         }
+        Expr::Tuple(elements) => {
+            for elem in elements {
+                v.visit_expr(elem);
+            }
+        }
+        Expr::Cast { expr, .. } => {
+            v.visit_expr(expr);
+        }
+        Expr::Try(inner) => {
+            v.visit_expr(inner);
+        }
     }
 }
 
@@ -495,6 +548,11 @@ fn walk_pattern_mut<V: MutVisitor + ?Sized>(v: &mut V, pattern: &mut Pattern) {
             }
         }
         Pattern::Tuple(patterns) => {
+            for p in patterns {
+                v.visit_pattern(p);
+            }
+        }
+        Pattern::Or(patterns) => {
             for p in patterns {
                 v.visit_pattern(p);
             }

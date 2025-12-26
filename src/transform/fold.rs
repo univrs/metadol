@@ -210,6 +210,14 @@ pub trait Fold {
             Expr::List(elements) => {
                 Expr::List(elements.into_iter().map(|e| self.fold_expr(e)).collect())
             }
+            Expr::Tuple(elements) => {
+                Expr::Tuple(elements.into_iter().map(|e| self.fold_expr(e)).collect())
+            }
+            Expr::Cast { expr, target_type } => Expr::Cast {
+                expr: Box::new(self.fold_expr(*expr)),
+                target_type,
+            },
+            Expr::Try(inner) => Expr::Try(Box::new(self.fold_expr(*inner))),
         }
     }
 

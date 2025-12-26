@@ -263,6 +263,21 @@ impl Interpreter {
                 }
                 Ok(Value::Array(values))
             }
+
+            // Tuple literal - evaluate elements (stored as array)
+            Expr::Tuple(elements) => {
+                let mut values = Vec::new();
+                for elem in elements {
+                    values.push(self.eval_in_env(elem, env)?);
+                }
+                Ok(Value::Array(values))
+            }
+
+            // Type cast - evaluate expr, cast is a no-op in the interpreter
+            Expr::Cast { expr, .. } => self.eval_in_env(expr, env),
+
+            // Try expression - evaluate the inner expression
+            Expr::Try(inner) => self.eval_in_env(inner, env),
         }
     }
 
@@ -347,6 +362,12 @@ impl Interpreter {
                     Ok(Value::Bool(right_val.is_truthy()))
                 }
             }
+
+            // Range operator
+            BinaryOp::Range => {
+                // For now, represent range as an array [start, end]
+                Ok(Value::Array(vec![left_val, right_val]))
+            }
         }
     }
 
@@ -379,6 +400,10 @@ impl Interpreter {
             }
             UnaryOp::Quote => Ok(Value::Quoted(Box::new(operand.clone()))),
             UnaryOp::Reflect => Err(EvalError::new("reflect operator requires type expression")),
+            UnaryOp::Deref => {
+                // In DOL interpreter, dereference just passes through (no real pointers)
+                self.eval_in_env(operand, env)
+            }
         }
     }
 
@@ -480,6 +505,7 @@ impl Interpreter {
                     .map(|(i, _)| (format!("field{}", i), "type".to_string()))
                     .collect(),
             ),
+            TypeExpr::Never => ("Never".to_string(), "never".to_string(), vec![]),
         };
 
         Ok(Value::TypeInfo { name, kind, fields })
@@ -519,6 +545,19 @@ impl Interpreter {
             }
             Pattern::Constructor { .. } => {
                 // Constructor patterns not fully implemented yet
+                Ok(false)
+            }
+            Pattern::Or(patterns) => {
+                // Try each pattern alternative
+                for pat in patterns {
+                    // Clone the env to avoid binding side effects on failed matches
+                    let mut test_env = env.clone();
+                    if self.match_pattern(pat, value, &mut test_env)? {
+                        // On success, apply the bindings to the real env
+                        *env = test_env;
+                        return Ok(true);
+                    }
+                }
                 Ok(false)
             }
         }

@@ -67,6 +67,9 @@ pub fn infix_binding_power(op: &TokenKind) -> Option<(u8, u8)> {
         // Arrow (right-assoc)
         TokenKind::Arrow => (50, 51),
 
+        // Range (non-assoc)
+        TokenKind::DotDot => (55, 55),
+
         // Logical Or (left-assoc)
         TokenKind::Or => (61, 60),
 
@@ -87,6 +90,9 @@ pub fn infix_binding_power(op: &TokenKind) -> Option<(u8, u8)> {
 
         // Power (right-assoc)
         TokenKind::Caret => (120, 121),
+
+        // Type cast (left-assoc, high precedence)
+        TokenKind::As => (131, 130),
 
         // Member access (left-assoc, tightest)
         TokenKind::Dot => (141, 140),
@@ -111,6 +117,7 @@ pub fn prefix_binding_power(op: &TokenKind) -> Option<u8> {
     match op {
         TokenKind::Minus => Some(130),   // Unary minus
         TokenKind::Bang => Some(130),    // Logical not / Eval
+        TokenKind::Star => Some(130),    // Dereference
         TokenKind::Quote => Some(135),   // Quote
         TokenKind::Comma => Some(135),   // Unquote (splice)
         TokenKind::Reflect => Some(135), // Reflect

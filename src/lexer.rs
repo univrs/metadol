@@ -604,6 +604,7 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Lt => write!(f, "<"),
             TokenKind::Le => write!(f, "<="),
             TokenKind::Dot => write!(f, "."),
+            TokenKind::DotDot => write!(f, ".."),
             TokenKind::PathSep => write!(f, "::"),
             TokenKind::PlusEquals => write!(f, "+="),
             TokenKind::MinusEquals => write!(f, "-="),
@@ -759,8 +760,8 @@ impl<'a> Lexer<'a> {
             let before = self.remaining.len();
             self.skip_whitespace();
 
-            // Skip comments
-            if self.remaining.starts_with("//") {
+            // Skip comments (// style or -- style)
+            if self.remaining.starts_with("//") || self.remaining.starts_with("--") {
                 self.skip_line_comment();
             }
 
@@ -985,6 +986,8 @@ impl<'a> Lexer<'a> {
             (TokenKind::Or, 2)
         } else if self.remaining.starts_with("<|") {
             (TokenKind::BackPipe, 2)
+        } else if self.remaining.starts_with("..") {
+            (TokenKind::DotDot, 2)
         // Single-character operators
         } else if self.remaining.starts_with('>') {
             (TokenKind::Greater, 1)

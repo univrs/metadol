@@ -291,6 +291,20 @@ impl IdiomDesugar {
             Expr::List(elements) => {
                 Expr::List(elements.into_iter().map(|e| self.desugar_expr(e)).collect())
             }
+
+            // Tuple - transform elements
+            Expr::Tuple(elements) => {
+                Expr::Tuple(elements.into_iter().map(|e| self.desugar_expr(e)).collect())
+            }
+
+            // Cast - transform inner expression
+            Expr::Cast { expr, target_type } => Expr::Cast {
+                expr: Box::new(self.desugar_expr(*expr)),
+                target_type,
+            },
+
+            // Try - transform inner expression
+            Expr::Try(inner) => Expr::Try(Box::new(self.desugar_expr(*inner))),
         }
     }
 }

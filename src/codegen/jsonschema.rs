@@ -84,6 +84,7 @@ impl JsonSchemaCodegen {
                 Declaration::Constraint(c) => to_pascal_case(&c.name),
                 Declaration::System(s) => to_pascal_case(&s.name),
                 Declaration::Evolution(e) => to_pascal_case(&e.name),
+                Declaration::Function(f) => to_pascal_case(&f.name),
             };
             let schema = generator.generate_declaration_inner(decl);
             defs.push(format!("    \"{}\": {}", name, schema));
@@ -108,6 +109,7 @@ impl JsonSchemaCodegen {
             Declaration::Constraint(c) => to_pascal_case(&c.name),
             Declaration::System(s) => to_pascal_case(&s.name),
             Declaration::Evolution(e) => to_pascal_case(&e.name),
+            Declaration::Function(f) => to_pascal_case(&f.name),
         };
 
         let inner = self.generate_declaration_inner(decl);
@@ -132,7 +134,20 @@ impl JsonSchemaCodegen {
             Declaration::Constraint(constraint) => self.generate_constraint(constraint),
             Declaration::System(system) => self.generate_system(system),
             Declaration::Evolution(evolution) => self.generate_evolution(evolution),
+            Declaration::Function(func) => self.generate_function(func),
         }
+    }
+
+    /// Generate schema for a function (placeholder - functions don't map well to JSON Schema).
+    fn generate_function(&self, func: &crate::ast::FunctionDecl) -> String {
+        format!(
+            r#"{{
+    "type": "object",
+    "description": "Function {}",
+    "properties": {{}}
+}}"#,
+            func.name
+        )
     }
 
     /// Generate a JSON Schema object from a gene declaration.
@@ -497,6 +512,7 @@ impl TypeMapper for JsonSchemaCodegen {
             Type::Var(id) => format!(r#"{{ "$comment": "Type variable T{}" }}"#, id),
             Type::Any => r#"{ }"#.to_string(),
             Type::Unknown => r#"{ }"#.to_string(),
+            Type::Never => r#"{ "not": {} }"#.to_string(),
             Type::Error => r#"{ "not": {} }"#.to_string(),
         }
     }
@@ -570,6 +586,7 @@ impl TypeMapper for JsonSchemaCodegen {
                     types.len()
                 )
             }
+            TypeExpr::Never => r#"{ "not": {} }"#.to_string(),
         }
     }
 }

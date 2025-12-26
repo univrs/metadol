@@ -87,6 +87,28 @@ impl<'a> Parser<'a> {
         Ok(decl)
     }
 
+    /// Parses all declarations from the input.
+    ///
+    /// Skips module declarations and use statements, then parses all
+    /// top-level declarations until EOF.
+    ///
+    /// # Returns
+    ///
+    /// A vector of all parsed declarations, or a `ParseError` on failure.
+    pub fn parse_all(&mut self) -> Result<Vec<Declaration>, ParseError> {
+        // Skip module declaration if present
+        self.skip_module_and_uses()?;
+
+        let mut declarations = Vec::new();
+
+        while self.current.kind != TokenKind::Eof {
+            let decl = self.parse_declaration()?;
+            declarations.push(decl);
+        }
+
+        Ok(declarations)
+    }
+
     /// Skips module declaration and use statements at the start of a file.
     fn skip_module_and_uses(&mut self) -> Result<(), ParseError> {
         // Skip module declaration
@@ -223,6 +245,57 @@ impl<'a> Parser<'a> {
 
     /// Parses a declaration.
     fn parse_declaration(&mut self) -> Result<Declaration, ParseError> {
+        // Handle attribute annotations like #[test]
+        while self.current.kind == TokenKind::Macro {
+            // Skip the attribute and the following declaration (tests are skipped)
+            self.advance(); // consume #
+            if self.current.kind == TokenKind::LeftBracket {
+                self.advance(); // consume [
+                                // Skip to closing ]
+                let mut depth = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LeftBracket => depth += 1,
+                        TokenKind::RightBracket => depth -= 1,
+                        _ => {}
+                    }
+                    self.advance();
+                }
+            }
+            // Skip the following function (test function)
+            if self.current.kind == TokenKind::Function {
+                self.advance(); // consume 'fun'
+                                // Skip function name and body
+                while self.current.kind != TokenKind::Eof {
+                    if self.current.kind == TokenKind::LeftBrace {
+                        // Skip function body
+                        self.advance();
+                        let mut depth = 1;
+                        while depth > 0 && self.current.kind != TokenKind::Eof {
+                            match self.current.kind {
+                                TokenKind::LeftBrace => depth += 1,
+                                TokenKind::RightBrace => depth -= 1,
+                                _ => {}
+                            }
+                            self.advance();
+                        }
+                        break;
+                    }
+                    self.advance();
+                }
+            }
+            // Check if we've reached end of file after skipping tests
+            if self.current.kind == TokenKind::Eof {
+                // Return a placeholder for files that only have tests after the main content
+                return Ok(Declaration::Gene(Gene {
+                    name: "_test_skipped".to_string(),
+                    statements: vec![],
+                    exegesis: "Tests skipped".to_string(),
+                    span: self.current.span,
+                }));
+            }
+        }
+
         // Skip visibility modifier
         if self.current.kind == TokenKind::Pub {
             self.advance();
@@ -243,6 +316,11 @@ impl<'a> Parser<'a> {
             TokenKind::System => self.parse_system(),
             TokenKind::Evolves => self.parse_evolution(),
             TokenKind::Sex => self.parse_sex_top_level(),
+            TokenKind::Function => {
+                // Top-level pure function
+                let func = self.parse_function_decl()?;
+                Ok(Declaration::Function(Box::new(func)))
+            }
             TokenKind::Exegesis => {
                 // Skip file-level exegesis block
                 self.advance(); // consume 'exegesis'
@@ -841,7 +919,7 @@ impl<'a> Parser<'a> {
         // Handle DOL 2.0 'has' field declarations: has name: Type [= default]
         if self.current.kind == TokenKind::Has {
             self.advance();
-            let name = self.expect_identifier()?;
+            let name = self.expect_identifier_or_keyword()?;
             // Skip type annotation: Type
             if self.current.kind == TokenKind::Colon {
                 self.advance();
@@ -979,7 +1057,7 @@ impl<'a> Parser<'a> {
         match self.current.kind {
             TokenKind::Has => {
                 self.advance();
-                let property = self.expect_identifier()?;
+                let property = self.expect_identifier_or_keyword()?;
                 Ok(Statement::Has {
                     subject,
                     property,
@@ -1112,7 +1190,7 @@ impl<'a> Parser<'a> {
                     }
                     TokenKind::Has => {
                         self.advance();
-                        let property = self.expect_identifier()?;
+                        let property = self.expect_identifier_or_keyword()?;
                         Ok(Statement::Has {
                             subject: phrase,
                             property,
@@ -1290,7 +1368,7 @@ impl<'a> Parser<'a> {
         start_span: Span,
     ) -> Result<Statement, ParseError> {
         self.expect(TokenKind::Has)?;
-        let property = self.expect_identifier()?;
+        let property = self.expect_identifier_or_keyword()?;
 
         // Check for HasField with type, default, and constraint
         // This is for DOL 2.0 extended has syntax
@@ -1309,9 +1387,9 @@ impl<'a> Parser<'a> {
     pub fn parse_has_field(&mut self) -> Result<HasField, ParseError> {
         let start_span = self.current.span;
 
-        let name = self.expect_identifier()?;
+        let name = self.expect_identifier_or_keyword()?;
         self.expect(TokenKind::Has)?;
-        let _property = self.expect_identifier()?; // "property" part becomes part of name
+        let _property = self.expect_identifier_or_keyword()?; // "property" part becomes part of name
 
         // Parse optional type
         let type_ = if self.current.kind == TokenKind::Colon {
@@ -1494,16 +1572,13 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Function => {
                 self.advance(); // consume 'sex'
-                let func = self.parse_function_decl()?;
-                Ok(Declaration::Gene(Gene {
-                    name: func.name.clone(),
-                    statements: vec![],
-                    exegesis: format!("sex fun {}", func.name),
-                    span: func.span,
-                }))
+                let mut func = self.parse_function_decl()?;
+                func.purity = crate::ast::Purity::Sex;
+                Ok(Declaration::Function(Box::new(func)))
             }
             TokenKind::Extern => {
                 let extern_decl = self.parse_sex_extern()?;
+                // Keep extern functions as Gene placeholder (FFI stubs need special handling)
                 Ok(Declaration::Gene(Gene {
                     name: extern_decl.name.clone(),
                     statements: vec![],
@@ -1669,7 +1744,8 @@ impl<'a> Parser<'a> {
                     while self.current.kind != TokenKind::RightBrace
                         && self.current.kind != TokenKind::Eof
                     {
-                        let field_name = self.expect_identifier()?;
+                        // Allow keywords as struct field names (e.g., uses, module, etc.)
+                        let field_name = self.expect_identifier_or_keyword()?;
                         self.expect(TokenKind::Colon)?;
                         let value = self.parse_expr(0)?;
                         fields.push((field_name, value));
@@ -1697,7 +1773,7 @@ impl<'a> Parser<'a> {
             }
 
             // Check for infix operators (excluding Dot which is handled above)
-            if let Some((left_bp, right_bp)) = infix_binding_power(&self.current.kind) {
+            if let Some((left_bp, _right_bp)) = infix_binding_power(&self.current.kind) {
                 if self.current.kind == TokenKind::Dot {
                     // Already handled above
                     break;
@@ -1709,8 +1785,17 @@ impl<'a> Parser<'a> {
                 let op = self.current.kind;
                 self.advance();
 
-                let rhs = self.parse_expr(right_bp)?;
-                lhs = self.make_binary_expr(lhs, op, rhs)?;
+                // Special handling for `as` - it takes a type, not an expression
+                if op == TokenKind::As {
+                    let target_type = self.parse_type()?;
+                    lhs = Expr::Cast {
+                        expr: Box::new(lhs),
+                        target_type,
+                    };
+                } else {
+                    let rhs = self.parse_expr(_right_bp)?;
+                    lhs = self.make_binary_expr(lhs, op, rhs)?;
+                }
             } else if self.current.kind == TokenKind::LeftParen {
                 // Function call
                 self.advance();
@@ -1739,6 +1824,10 @@ impl<'a> Parser<'a> {
                     callee: Box::new(lhs),
                     args: vec![index],
                 };
+            } else if self.current.kind == TokenKind::Reflect {
+                // Postfix `?` - try operator for error propagation
+                self.advance();
+                lhs = Expr::Try(Box::new(lhs));
             } else if self.current.kind == TokenKind::LeftBrace {
                 // Struct literal without path: Identifier { field: value }
                 // Only treat as struct literal if:
@@ -1769,7 +1858,8 @@ impl<'a> Parser<'a> {
                     while self.current.kind != TokenKind::RightBrace
                         && self.current.kind != TokenKind::Eof
                     {
-                        let field_name = self.expect_identifier()?;
+                        // Allow keywords as struct field names (e.g., uses, module, etc.)
+                        let field_name = self.expect_identifier_or_keyword()?;
                         self.expect(TokenKind::Colon)?;
                         let value = self.parse_expr(0)?;
                         fields.push((field_name, value));
@@ -1861,7 +1951,7 @@ impl<'a> Parser<'a> {
                 Ok(Expr::Literal(Literal::Char(value)))
             }
             TokenKind::Identifier => {
-                let name = self.current.lexeme.clone();
+                let mut name = self.current.lexeme.clone();
                 self.advance();
 
                 // Check for special boolean literals
@@ -1869,6 +1959,18 @@ impl<'a> Parser<'a> {
                     return Ok(Expr::Literal(Literal::Bool(true)));
                 } else if name == "false" {
                     return Ok(Expr::Literal(Literal::Bool(false)));
+                }
+
+                // Handle path expressions like Map::new, Type::Variant
+                while self.current.kind == TokenKind::PathSep {
+                    self.advance(); // consume ::
+                    if self.current.kind == TokenKind::Identifier {
+                        name.push_str("::");
+                        name.push_str(&self.current.lexeme);
+                        self.advance();
+                    } else {
+                        break;
+                    }
                 }
 
                 Ok(Expr::Identifier(name))
@@ -1883,18 +1985,70 @@ impl<'a> Parser<'a> {
             | TokenKind::Exegesis
             | TokenKind::Test
             | TokenKind::Law
-            | TokenKind::State => {
-                let name = self.current.lexeme.clone();
+            | TokenKind::State
+            | TokenKind::Module
+            | TokenKind::Use
+            // Type keywords for referencing type enum variants
+            | TokenKind::Int8
+            | TokenKind::Int16
+            | TokenKind::Int32
+            | TokenKind::Int64
+            | TokenKind::UInt8
+            | TokenKind::UInt16
+            | TokenKind::UInt32
+            | TokenKind::UInt64
+            | TokenKind::Float32
+            | TokenKind::Float64
+            | TokenKind::BoolType
+            | TokenKind::StringType
+            | TokenKind::VoidType => {
+                let mut name = self.current.lexeme.clone();
                 self.advance();
+
+                // Handle path expressions like Type::Variant
+                while self.current.kind == TokenKind::PathSep {
+                    self.advance(); // consume ::
+                    if self.current.kind == TokenKind::Identifier {
+                        name.push_str("::");
+                        name.push_str(&self.current.lexeme);
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
                 Ok(Expr::Identifier(name))
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple
             TokenKind::LeftParen => {
                 self.advance();
-                let expr = self.parse_expr(0)?;
-                self.expect(TokenKind::RightParen)?;
-                Ok(expr)
+
+                // Empty tuple: ()
+                if self.current.kind == TokenKind::RightParen {
+                    self.advance();
+                    return Ok(Expr::Tuple(vec![]));
+                }
+
+                let first = self.parse_expr(0)?;
+
+                // Check for tuple (comma separated)
+                if self.current.kind == TokenKind::Comma {
+                    let mut elements = vec![first];
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance();
+                        if self.current.kind == TokenKind::RightParen {
+                            break; // Trailing comma
+                        }
+                        elements.push(self.parse_expr(0)?);
+                    }
+                    self.expect(TokenKind::RightParen)?;
+                    Ok(Expr::Tuple(elements))
+                } else {
+                    // Simple parenthesized expression
+                    self.expect(TokenKind::RightParen)?;
+                    Ok(first)
+                }
             }
 
             // Lambda expression: |params| body
@@ -1960,6 +2114,44 @@ impl<'a> Parser<'a> {
                 Ok(Expr::List(elements))
             }
 
+            // Control flow as expressions (for use in match arms)
+            TokenKind::Break => {
+                self.advance();
+                Ok(Expr::Block {
+                    statements: vec![Stmt::Break],
+                    final_expr: None,
+                })
+            }
+
+            TokenKind::Continue => {
+                self.advance();
+                Ok(Expr::Block {
+                    statements: vec![Stmt::Continue],
+                    final_expr: None,
+                })
+            }
+
+            TokenKind::Return => {
+                self.advance();
+                // Check if there's a return value
+                let value = if self.current.kind != TokenKind::RightBrace
+                    && self.current.kind != TokenKind::Comma
+                    && self.current.kind != TokenKind::Eof
+                    && !matches!(
+                        self.current.kind,
+                        TokenKind::RightParen | TokenKind::RightBracket
+                    )
+                {
+                    Some(self.parse_expr(0)?)
+                } else {
+                    None
+                };
+                Ok(Expr::Block {
+                    statements: vec![Stmt::Return(value)],
+                    final_expr: None,
+                })
+            }
+
             _ => Err(ParseError::UnexpectedToken {
                 expected: "expression".to_string(),
                 found: format!("'{}'", self.current.lexeme),
@@ -1995,6 +2187,7 @@ impl<'a> Parser<'a> {
             TokenKind::At => BinaryOp::Apply,
             TokenKind::Bind => BinaryOp::Bind,
             TokenKind::Dot => BinaryOp::Member,
+            TokenKind::DotDot => BinaryOp::Range,
             _ => {
                 return Err(ParseError::InvalidStatement {
                     message: format!("invalid binary operator: {:?}", op_token),
@@ -2030,6 +2223,10 @@ impl<'a> Parser<'a> {
                 // Comma as unquote operator (,expr)
                 Ok(Expr::Unquote(Box::new(operand)))
             }
+            TokenKind::Star => Ok(Expr::Unary {
+                op: UnaryOp::Deref,
+                operand: Box::new(operand),
+            }),
             _ => Err(ParseError::InvalidStatement {
                 message: format!("invalid unary operator: {:?}", op_token),
                 span: self.current.span,
@@ -2119,7 +2316,20 @@ impl<'a> Parser<'a> {
 
         let mut arms = Vec::new();
         while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
-            let pattern = self.parse_pattern()?;
+            // Parse first pattern
+            let first_pattern = self.parse_pattern()?;
+
+            // Check for or-patterns (pattern | pattern | ...)
+            let pattern = if self.current.kind == TokenKind::Bar {
+                let mut patterns = vec![first_pattern];
+                while self.current.kind == TokenKind::Bar {
+                    self.advance();
+                    patterns.push(self.parse_pattern()?);
+                }
+                Pattern::Or(patterns)
+            } else {
+                first_pattern
+            };
 
             let guard = if self.current.kind == TokenKind::If {
                 self.advance();
@@ -2185,7 +2395,23 @@ impl<'a> Parser<'a> {
             | TokenKind::Exegesis
             | TokenKind::Test
             | TokenKind::Law
-            | TokenKind::State => {
+            | TokenKind::State
+            | TokenKind::Module
+            | TokenKind::Use
+            // Type keywords for matching type enum variants
+            | TokenKind::Int8
+            | TokenKind::Int16
+            | TokenKind::Int32
+            | TokenKind::Int64
+            | TokenKind::UInt8
+            | TokenKind::UInt16
+            | TokenKind::UInt32
+            | TokenKind::UInt64
+            | TokenKind::Float32
+            | TokenKind::Float64
+            | TokenKind::BoolType
+            | TokenKind::StringType
+            | TokenKind::VoidType => {
                 let name = self.current.lexeme.clone();
                 self.advance();
                 Ok(Pattern::Identifier(name))
@@ -2223,8 +2449,11 @@ impl<'a> Parser<'a> {
                 // Struct patterns have: `{ }`, `{ ident }`, `{ ident: ... }`, `{ ident, ... }`
                 // Match arm bodies have: `{ expr.method() }`, `{ func() }`, etc.
                 // So we check that the token after the first identifier is `:`, `,`, or `}`
+                // Also check that the identifier is a simple name (no dots), since
+                // qualified paths like `Type.Int64` are expressions, not field names.
                 else if self.current.kind == TokenKind::LeftBrace
                     && self.peek().kind == TokenKind::Identifier
+                    && !self.peek().lexeme.contains('.')
                     && matches!(
                         self.peek2().kind,
                         TokenKind::Colon | TokenKind::Comma | TokenKind::RightBrace
@@ -2406,11 +2635,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses a single statement.
     pub fn parse_stmt(&mut self) -> Result<Stmt, ParseError> {
         match self.current.kind {
             TokenKind::Let => {
                 self.advance();
-                let name = self.expect_identifier()?;
+                // Support `let _ = ...` discard pattern
+                let name = if self.current.kind == TokenKind::Underscore {
+                    self.advance();
+                    "_".to_string()
+                } else {
+                    // Allow keywords as variable names (e.g., let exegesis = ...)
+                    self.expect_identifier_or_keyword()?
+                };
 
                 let type_ann = if self.current.kind == TokenKind::Colon {
                     self.advance();
@@ -2419,8 +2656,21 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                self.expect(TokenKind::Equal)?;
-                let value = self.parse_expr(0)?;
+                // Value is optional if type annotation is provided (uninitialized declaration)
+                let value = if self.current.kind == TokenKind::Equal {
+                    self.advance();
+                    self.parse_expr(0)?
+                } else if type_ann.is_some() {
+                    // Use a placeholder for uninitialized declarations with type annotations
+                    // This will be generated as `let name: Type;` in Rust
+                    Expr::Identifier("__uninitialized__".to_string())
+                } else {
+                    return Err(ParseError::UnexpectedToken {
+                        expected: "= or type annotation".to_string(),
+                        found: format!("'{}'", self.current.lexeme),
+                        span: self.current.span,
+                    });
+                };
                 self.consume_optional_semicolon();
 
                 Ok(Stmt::Let {
@@ -2648,6 +2898,10 @@ impl<'a> Parser<'a> {
                 self.advance();
                 TypeExpr::Named("Void".to_string())
             }
+            TokenKind::Bang => {
+                self.advance();
+                TypeExpr::Never
+            }
             TokenKind::Identifier => {
                 let name = self.expect_identifier()?;
 
@@ -2655,7 +2909,9 @@ impl<'a> Parser<'a> {
                 if self.current.kind == TokenKind::Lt {
                     self.advance();
                     let mut args = Vec::new();
+                    // Also check for Compose (>>) which can occur in nested generics
                     while self.current.kind != TokenKind::Greater
+                        && self.current.kind != TokenKind::Compose
                         && self.current.kind != TokenKind::Eof
                     {
                         args.push(self.parse_type()?);
@@ -2665,7 +2921,8 @@ impl<'a> Parser<'a> {
                             break;
                         }
                     }
-                    self.expect(TokenKind::Greater)?;
+                    // Use special method that handles >> splitting
+                    self.expect_greater_in_type()?;
                     TypeExpr::Generic { name, args }
                 } else {
                     TypeExpr::Named(name)
@@ -2762,6 +3019,7 @@ impl<'a> Parser<'a> {
             params,
             return_type,
             body,
+            exegesis: String::new(),
             span,
         })
     }
@@ -3066,6 +3324,35 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Expects a `>` token in type context, also accepting `>>` and splitting it.
+    /// This handles nested generics like `Option<Box<T>>` where `>>` is tokenized as one token.
+    fn expect_greater_in_type(&mut self) -> Result<(), ParseError> {
+        if self.current.kind == TokenKind::Greater {
+            self.advance();
+            Ok(())
+        } else if self.current.kind == TokenKind::Compose {
+            // >> becomes > after consuming one >
+            // Create a new > token with updated span
+            self.current = Token {
+                kind: TokenKind::Greater,
+                lexeme: ">".to_string(),
+                span: Span {
+                    start: self.current.span.start + 1,
+                    end: self.current.span.end,
+                    line: self.current.span.line,
+                    column: self.current.span.column + 1,
+                },
+            };
+            Ok(())
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: ">".to_string(),
+                found: format!("'{}'", self.current.lexeme),
+                span: self.current.span,
+            })
+        }
+    }
+
     /// Expects an identifier and returns it.
     fn expect_identifier(&mut self) -> Result<String, ParseError> {
         if self.current.kind == TokenKind::Identifier {
@@ -3094,7 +3381,46 @@ impl<'a> Parser<'a> {
             | TokenKind::Exegesis
             | TokenKind::Test
             | TokenKind::Law
-            | TokenKind::State => {
+            | TokenKind::State
+            | TokenKind::Module
+            | TokenKind::Use
+            | TokenKind::Uses
+            // Additional keywords that can be used as identifiers
+            | TokenKind::Migrate
+            | TokenKind::Pub
+            | TokenKind::Has
+            | TokenKind::Is
+            | TokenKind::Requires
+            | TokenKind::Var
+            | TokenKind::Let
+            | TokenKind::Function
+            | TokenKind::Return
+            | TokenKind::If
+            | TokenKind::Else
+            | TokenKind::Match
+            | TokenKind::For
+            | TokenKind::While
+            | TokenKind::Loop
+            | TokenKind::In
+            | TokenKind::Break
+            | TokenKind::Continue
+            | TokenKind::Where
+            | TokenKind::True
+            | TokenKind::False
+            // Type keywords
+            | TokenKind::Int8
+            | TokenKind::Int16
+            | TokenKind::Int32
+            | TokenKind::Int64
+            | TokenKind::UInt8
+            | TokenKind::UInt16
+            | TokenKind::UInt32
+            | TokenKind::UInt64
+            | TokenKind::Float32
+            | TokenKind::Float64
+            | TokenKind::BoolType
+            | TokenKind::StringType
+            | TokenKind::VoidType => {
                 let lexeme = self.current.lexeme.clone();
                 self.advance();
                 Ok(lexeme)

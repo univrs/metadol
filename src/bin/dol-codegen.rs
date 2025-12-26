@@ -32,7 +32,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use metadol::codegen::{JsonSchemaCodegen, RustCodegen, TypeScriptCodegen};
-use metadol::parse_file;
+use metadol::parse_file_all;
 
 /// Generate code from Metal DOL declarations
 #[derive(Parser, Debug)]
@@ -206,13 +206,13 @@ fn process_file(path: &PathBuf, args: &Args) -> Result<String, String> {
     let source =
         std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
 
-    let decl = parse_file(&source).map_err(|e| format!("Parse error: {}", e))?;
+    let decls = parse_file_all(&source).map_err(|e| format!("Parse error: {}", e))?;
 
     // Generate code based on target
     let code = match args.target {
-        TargetLanguage::Rust => RustCodegen::generate(&decl),
-        TargetLanguage::Typescript => TypeScriptCodegen::generate(&decl),
-        TargetLanguage::Jsonschema => JsonSchemaCodegen::generate(&decl),
+        TargetLanguage::Rust => RustCodegen::generate_all(&decls),
+        TargetLanguage::Typescript => TypeScriptCodegen::generate_all(&decls),
+        TargetLanguage::Jsonschema => JsonSchemaCodegen::generate_all(&decls),
     };
 
     Ok(code)

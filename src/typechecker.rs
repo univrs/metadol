@@ -91,6 +91,9 @@ pub enum Type {
     /// Any type (compatible with everything - for gradual typing)
     Any,
 
+    /// Never type (function never returns)
+    Never,
+
     /// Error type (propagates type errors)
     Error,
 }
@@ -186,6 +189,7 @@ impl Type {
                 return_type: Box::new(Type::from_type_expr(return_type)),
             },
             TypeExpr::Tuple(types) => Type::Tuple(types.iter().map(Type::from_type_expr).collect()),
+            TypeExpr::Never => Type::Never,
         }
     }
 }
@@ -246,6 +250,7 @@ impl std::fmt::Display for Type {
             Type::Var(id) => write!(f, "?{}", id),
             Type::Unknown => write!(f, "?"),
             Type::Any => write!(f, "Any"),
+            Type::Never => write!(f, "!"),
             Type::Error => write!(f, "Error"),
         }
     }
@@ -613,6 +618,30 @@ impl TypeChecker {
                     })
                 }
             }
+            // Tuple literal
+            Expr::Tuple(elements) => {
+                let mut elem_types = Vec::new();
+                for elem in elements {
+                    elem_types.push(self.infer(elem)?);
+                }
+                Ok(Type::Tuple(elem_types))
+            }
+
+            // Type cast - the result is the target type
+            Expr::Cast { expr, target_type } => {
+                // Type-check the expression being cast
+                let _expr_type = self.infer(expr)?;
+                // The result type is the target type
+                Ok(Type::from_type_expr(target_type))
+            }
+
+            // Try expression - propagates errors, returns inner type on success
+            Expr::Try(inner) => {
+                // Type-check the inner expression
+                let inner_type = self.infer(inner)?;
+                // For now, just return the inner type (proper Result handling would be more complex)
+                Ok(inner_type)
+            }
         }
     }
 
@@ -654,6 +683,11 @@ impl TypeChecker {
                 name: "TypeInfo".to_string(),
                 args: vec![],
             }),
+            UnaryOp::Deref => {
+                // Dereference - for now just return the operand type
+                // Full implementation would unwrap pointer/reference types
+                Ok(operand_type)
+            }
         }
     }
 
@@ -852,6 +886,18 @@ impl TypeChecker {
                     )));
                 }
                 Ok(Type::Bool)
+            }
+
+            // Range operator
+            BinaryOp::Range => {
+                if !left_type.is_numeric() || !right_type.is_numeric() {
+                    self.error(TypeError::new(format!(
+                        "range requires numeric types, found {} and {}",
+                        left_type, right_type
+                    )));
+                }
+                // Return a Range type (for now, use a tuple representation)
+                Ok(Type::Tuple(vec![left_type, right_type]))
             }
         }
     }
@@ -1052,6 +1098,13 @@ impl TypeChecker {
             }
             Pattern::Constructor { fields, .. } => {
                 for p in fields {
+                    self.bind_pattern(p);
+                }
+            }
+            Pattern::Or(patterns) => {
+                // For or-patterns, bind variables from first pattern
+                // (all patterns should bind the same variables)
+                if let Some(p) = patterns.first() {
                     self.bind_pattern(p);
                 }
             }

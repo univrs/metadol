@@ -141,7 +141,52 @@ impl RustCodegen {
             Declaration::Constraint(constraint) => self.generate_constraint(constraint),
             Declaration::System(system) => self.generate_system(system),
             Declaration::Evolution(evolution) => self.generate_evolution(evolution),
+            Declaration::Function(func) => self.generate_toplevel_function(func),
         }
+    }
+
+    /// Generate a top-level Rust function from a function declaration.
+    fn generate_toplevel_function(&self, func: &crate::ast::FunctionDecl) -> String {
+        let visibility = self.visibility_str();
+        let mut output = String::new();
+
+        // Add exegesis as doc comment
+        if !func.exegesis.is_empty() {
+            for line in func.exegesis.lines() {
+                output.push_str(&format!("/// {}\n", line.trim()));
+            }
+        }
+
+        // Function signature
+        output.push_str(&format!("{visibility}fn {}(", to_rust_ident(&func.name)));
+
+        // Generate parameters
+        let params_str: Vec<String> = func
+            .params
+            .iter()
+            .map(|param| {
+                let param_type = Self::map_type_expr(&param.type_ann);
+                format!("{}: {}", to_rust_ident(&param.name), param_type)
+            })
+            .collect();
+        output.push_str(&params_str.join(", "));
+        output.push(')');
+
+        // Return type
+        if let Some(ret_ty) = &func.return_type {
+            output.push_str(" -> ");
+            output.push_str(&Self::map_type_expr(ret_ty));
+        }
+
+        output.push_str(" {\n");
+
+        // Generate function body
+        for stmt in &func.body {
+            output.push_str(&self.gen_stmt(stmt, 1));
+        }
+
+        output.push_str("}\n");
+        output
     }
 
     /// Generate a Rust struct from a gene declaration.
@@ -151,6 +196,9 @@ impl RustCodegen {
 
         // Collect properties from "has" statements
         let fields = self.extract_fields(&gene.statements);
+
+        // Collect function declarations
+        let functions = self.extract_functions(&gene.statements);
 
         let mut output = String::new();
 
@@ -173,8 +221,8 @@ impl RustCodegen {
 
         output.push_str("}\n\n");
 
-        // Generate impl block with constructor and validators
-        output.push_str(&self.gen_gene_impl(&struct_name, &fields));
+        // Generate impl block with constructor, validators, and methods
+        output.push_str(&self.gen_gene_impl(&struct_name, &fields, &functions));
 
         output
     }
@@ -346,6 +394,7 @@ impl RustCodegen {
         &self,
         struct_name: &str,
         fields: &[(String, String, Option<Expr>, Option<Expr>)],
+        functions: &[&FunctionDecl],
     ) -> String {
         let visibility = self.visibility_str();
         let mut output = String::new();
@@ -399,7 +448,70 @@ impl RustCodegen {
             output.push_str("    }\n");
         }
 
+        // Generate methods from function declarations
+        for func in functions {
+            output.push('\n');
+            output.push_str(&self.gen_method(func));
+        }
+
         output.push_str("}\n");
+        output
+    }
+
+    /// Generate a Rust method from a function declaration.
+    fn gen_method(&self, func: &FunctionDecl) -> String {
+        let visibility = self.visibility_str();
+        let mut output = String::new();
+
+        // Method signature
+        output.push_str(&format!(
+            "    {visibility}fn {}(",
+            to_rust_ident(&func.name)
+        ));
+
+        // Generate parameters - check if first param is 'this' for self reference
+        let mut params_str = Vec::new();
+        let mut skip_first = false;
+
+        if let Some(first_param) = func.params.first() {
+            if first_param.name == "this" || first_param.name == "self" {
+                // First parameter is self reference
+                // Check if the type indicates mutability (e.g., MutRef<Self>)
+                let self_str = match &first_param.type_ann {
+                    TypeExpr::Generic { name, .. } if name == "MutRef" => "&mut self",
+                    _ => "&self",
+                };
+                params_str.push(self_str.to_string());
+                skip_first = true;
+            }
+        }
+
+        // Add remaining parameters
+        for (i, param) in func.params.iter().enumerate() {
+            if skip_first && i == 0 {
+                continue;
+            }
+            let param_type = Self::map_type_expr(&param.type_ann);
+            params_str.push(format!("{}: {}", to_rust_ident(&param.name), param_type));
+        }
+
+        output.push_str(&params_str.join(", "));
+        output.push(')');
+
+        // Return type
+        if let Some(ret_ty) = &func.return_type {
+            output.push_str(" -> ");
+            output.push_str(&Self::map_type_expr(ret_ty));
+        }
+
+        output.push_str(" {\n");
+
+        // Generate method body
+        for stmt in &func.body {
+            output.push_str(&self.gen_stmt(stmt, 2));
+        }
+
+        output.push_str("    }\n");
         output
     }
 
@@ -429,6 +541,20 @@ impl RustCodegen {
                     ))
                 }
                 _ => None,
+            })
+            .collect()
+    }
+
+    /// Extract function declarations from statements.
+    fn extract_functions<'a>(&self, statements: &'a [Statement]) -> Vec<&'a FunctionDecl> {
+        statements
+            .iter()
+            .filter_map(|stmt| {
+                if let Statement::Function(func) = stmt {
+                    Some(func.as_ref())
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -785,7 +911,37 @@ impl RustCodegen {
     pub fn gen_expr(&self, expr: &Expr) -> String {
         match expr {
             Expr::Literal(lit) => self.gen_literal(lit),
-            Expr::Identifier(name) => name.clone(),
+            Expr::Identifier(name) => {
+                // Handle qualified identifiers (DOL lexer collects dots as part of identifiers)
+                // e.g., "this.field" becomes "self.field", "Type.Variant" becomes "Type::Variant"
+                if name.contains('.') {
+                    let parts: Vec<&str> = name.split('.').collect();
+                    let mut result = String::new();
+                    for (i, part) in parts.iter().enumerate() {
+                        if i > 0 {
+                            // Use :: if previous part starts with uppercase (type), else use .
+                            if result.chars().next().is_some_and(|c| c.is_uppercase())
+                                && !result.contains('.')
+                            {
+                                result.push_str("::");
+                            } else {
+                                result.push('.');
+                            }
+                        }
+                        // Map 'this' to 'self'
+                        if *part == "this" {
+                            result.push_str("self");
+                        } else {
+                            result.push_str(part);
+                        }
+                    }
+                    result
+                } else if name == "this" {
+                    "self".to_string()
+                } else {
+                    name.clone()
+                }
+            }
             Expr::Binary { left, op, right } => {
                 match op {
                     // Pipe operator: x |> f becomes f(x)
@@ -867,6 +1023,7 @@ impl RustCodegen {
                             crate::ast::BinaryOp::And => "&&",
                             crate::ast::BinaryOp::Or => "||",
                             crate::ast::BinaryOp::Member => ".",
+                            crate::ast::BinaryOp::Range => "..",
                             _ => "/* unsupported op */",
                         };
                         format!("({} {} {})", left_str, op_str, right_str)
@@ -878,6 +1035,7 @@ impl RustCodegen {
                 let op_str = match op {
                     crate::ast::UnaryOp::Neg => "-",
                     crate::ast::UnaryOp::Not => "!",
+                    crate::ast::UnaryOp::Deref => "*",
                     _ => "/* unsupported op */",
                 };
                 format!("{}{}", op_str, operand_str)
@@ -888,7 +1046,14 @@ impl RustCodegen {
                 format!("{}({})", callee_str, args_str.join(", "))
             }
             Expr::Member { object, field } => {
-                format!("{}.{}", self.gen_expr(object), field)
+                let obj_str = self.gen_expr(object);
+                // Use :: for type constructors (uppercase identifiers accessing variants)
+                // e.g., Type.Var -> Type::Var, but self.field -> self.field
+                if obj_str.chars().next().is_some_and(|c| c.is_uppercase()) {
+                    format!("{}::{}", obj_str, field)
+                } else {
+                    format!("{}.{}", obj_str, field)
+                }
             }
             Expr::If {
                 condition,
@@ -898,13 +1063,26 @@ impl RustCodegen {
                 let mut output = String::new();
                 output.push_str("if ");
                 output.push_str(&self.gen_expr(condition));
-                output.push_str(" { ");
-                output.push_str(&self.gen_expr(then_branch));
-                output.push_str(" }");
-                if let Some(else_br) = else_branch {
-                    output.push_str(" else { ");
-                    output.push_str(&self.gen_expr(else_br));
+                // If then_branch is already a block, it has its own braces
+                let then_str = self.gen_expr(then_branch);
+                if then_str.starts_with('{') {
+                    output.push(' ');
+                    output.push_str(&then_str);
+                } else {
+                    output.push_str(" { ");
+                    output.push_str(&then_str);
                     output.push_str(" }");
+                }
+                if let Some(else_br) = else_branch {
+                    let else_str = self.gen_expr(else_br);
+                    if else_str.starts_with('{') {
+                        output.push_str(" else ");
+                        output.push_str(&else_str);
+                    } else {
+                        output.push_str(" else { ");
+                        output.push_str(&else_str);
+                        output.push_str(" }");
+                    }
                 }
                 output
             }
@@ -994,6 +1172,23 @@ impl RustCodegen {
                 let elems: Vec<String> = elements.iter().map(|e| self.gen_expr(e)).collect();
                 format!("vec![{}]", elems.join(", "))
             }
+            // Tuple literal
+            Expr::Tuple(elements) => {
+                let elems: Vec<String> = elements.iter().map(|e| self.gen_expr(e)).collect();
+                format!("({})", elems.join(", "))
+            }
+            // Type cast
+            Expr::Cast { expr, target_type } => {
+                format!(
+                    "{} as {}",
+                    self.gen_expr(expr),
+                    Self::map_type_expr(target_type)
+                )
+            }
+            // Try operator
+            Expr::Try(inner) => {
+                format!("{}?", self.gen_expr(inner))
+            }
         }
     }
 
@@ -1041,16 +1236,23 @@ impl RustCodegen {
             crate::ast::Pattern::Literal(lit) => self.gen_literal(lit),
             crate::ast::Pattern::Constructor { name, fields } => {
                 let fields_str: Vec<String> = fields.iter().map(|p| self.gen_pattern(p)).collect();
+                // Convert DOL's Type.Variant to Rust's Type::Variant
+                let rust_name = name.replace('.', "::");
                 if fields.is_empty() {
-                    name.clone()
+                    rust_name
                 } else {
-                    format!("{}({})", name, fields_str.join(", "))
+                    format!("{}({})", rust_name, fields_str.join(", "))
                 }
             }
             crate::ast::Pattern::Tuple(patterns) => {
                 let patterns_str: Vec<String> =
                     patterns.iter().map(|p| self.gen_pattern(p)).collect();
                 format!("({})", patterns_str.join(", "))
+            }
+            crate::ast::Pattern::Or(patterns) => {
+                let patterns_str: Vec<String> =
+                    patterns.iter().map(|p| self.gen_pattern(p)).collect();
+                patterns_str.join(" | ")
             }
         }
     }
@@ -1374,6 +1576,7 @@ impl TypeMapper for RustCodegen {
             Type::Var(id) => format!("T{}", id),
             Type::Any => "Box<dyn std::any::Any>".to_string(),
             Type::Unknown => "/* unknown */".to_string(),
+            Type::Never => "!".to_string(),
             Type::Error => "/* error */".to_string(),
         }
     }
@@ -1419,6 +1622,7 @@ impl TypeMapper for RustCodegen {
                 let mapped: Vec<_> = types.iter().map(Self::map_type_expr).collect();
                 format!("({})", mapped.join(", "))
             }
+            TypeExpr::Never => "!".to_string(),
         }
     }
 }

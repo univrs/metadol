@@ -176,6 +176,40 @@ pub fn parse_file(source: &str) -> Result<Declaration, ParseError> {
     parser.parse()
 }
 
+/// Parse all declarations from a DOL source string.
+///
+/// Returns all declarations in the file (genes, traits, constraints,
+/// systems, evolutions, and functions).
+///
+/// # Arguments
+///
+/// * `source` - The DOL source text to parse
+///
+/// # Returns
+///
+/// A vector of parsed `Declaration`s on success, or a `ParseError` if parsing fails.
+///
+/// # Example
+///
+/// ```rust
+/// use metadol::parse_file_all;
+///
+/// let source = r#"
+/// gene Container.exists {
+///   container has ports
+/// }
+///
+/// fun helper() -> Int32 { 42 }
+/// "#;
+///
+/// let result = parse_file_all(source);
+/// assert!(result.is_ok());
+/// ```
+pub fn parse_file_all(source: &str) -> Result<Vec<Declaration>, ParseError> {
+    let mut parser = Parser::new(source);
+    parser.parse_all()
+}
+
 /// Parse and validate a DOL source string.
 ///
 /// Combines parsing and validation into a single operation.

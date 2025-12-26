@@ -83,7 +83,42 @@ impl TypeScriptCodegen {
             Declaration::Constraint(constraint) => self.generate_constraint(constraint),
             Declaration::System(system) => self.generate_system(system),
             Declaration::Evolution(evolution) => self.generate_evolution(evolution),
+            Declaration::Function(func) => self.generate_function(func),
         }
+    }
+
+    /// Generate a TypeScript function from a function declaration.
+    fn generate_function(&self, func: &crate::ast::FunctionDecl) -> String {
+        let mut output = String::new();
+
+        // JSDoc comment from exegesis
+        if !func.exegesis.is_empty() {
+            output.push_str(&self.format_jsdoc(&func.exegesis));
+        }
+
+        // Function signature
+        output.push_str(&format!("export function {}(", func.name));
+
+        // Parameters
+        let params: Vec<String> = func
+            .params
+            .iter()
+            .map(|p| format!("{}: {}", p.name, Self::map_type_expr(&p.type_ann)))
+            .collect();
+        output.push_str(&params.join(", "));
+        output.push(')');
+
+        // Return type
+        if let Some(ret_ty) = &func.return_type {
+            output.push_str(": ");
+            output.push_str(&Self::map_type_expr(ret_ty));
+        }
+
+        output.push_str(" {\n");
+        output.push_str("    // TODO: implement\n");
+        output.push_str("}\n");
+
+        output
     }
 
     /// Generate a TypeScript interface from a gene declaration.
@@ -410,6 +445,7 @@ impl TypeMapper for TypeScriptCodegen {
             Type::Var(id) => format!("T{}", id),
             Type::Any => "any".to_string(),
             Type::Unknown => "unknown".to_string(),
+            Type::Never => "never".to_string(),
             Type::Error => "never".to_string(),
         }
     }
@@ -479,6 +515,7 @@ impl TypeMapper for TypeScriptCodegen {
                 let mapped: Vec<_> = types.iter().map(Self::map_type_expr).collect();
                 format!("[{}]", mapped.join(", "))
             }
+            TypeExpr::Never => "never".to_string(),
         }
     }
 }

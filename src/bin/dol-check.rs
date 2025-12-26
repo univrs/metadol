@@ -300,6 +300,7 @@ fn check_file(
         Declaration::Constraint(_) => "constraint",
         Declaration::System(_) => "system",
         Declaration::Evolution(_) => "evolution",
+        Declaration::Function(_) => "function",
     };
 
     Ok((

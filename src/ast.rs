@@ -256,6 +256,9 @@ pub enum Declaration {
 
     /// An evolution declaration - version lineage.
     Evolution(Evolution),
+
+    /// A top-level function declaration.
+    Function(Box<FunctionDecl>),
 }
 
 impl Declaration {
@@ -267,6 +270,7 @@ impl Declaration {
             Declaration::Constraint(c) => &c.name,
             Declaration::System(s) => &s.name,
             Declaration::Evolution(e) => &e.name,
+            Declaration::Function(f) => &f.name,
         }
     }
 
@@ -278,6 +282,7 @@ impl Declaration {
             Declaration::Constraint(c) => &c.exegesis,
             Declaration::System(s) => &s.exegesis,
             Declaration::Evolution(e) => &e.exegesis,
+            Declaration::Function(f) => &f.exegesis,
         }
     }
 
@@ -289,6 +294,7 @@ impl Declaration {
             Declaration::Constraint(c) => c.span,
             Declaration::System(s) => s.span,
             Declaration::Evolution(e) => e.span,
+            Declaration::Function(f) => f.span,
         }
     }
 
@@ -301,7 +307,7 @@ impl Declaration {
             Declaration::Trait(t) => &t.statements,
             Declaration::Constraint(c) => &c.statements,
             Declaration::System(s) => &s.statements,
-            Declaration::Evolution(_) => return ids,
+            Declaration::Evolution(_) | Declaration::Function(_) => return ids,
         };
 
         for stmt in statements {
@@ -770,6 +776,8 @@ pub enum BinaryOp {
     Ap,
     /// Logical implication `=>`
     Implies,
+    /// Range `..`
+    Range,
 }
 
 /// Unary operator for expressions.
@@ -786,6 +794,8 @@ pub enum UnaryOp {
     Quote,
     /// Type reflection `?`
     Reflect,
+    /// Dereference `*`
+    Deref,
 }
 
 /// Type expression for DOL 2.0.
@@ -813,6 +823,8 @@ pub enum TypeExpr {
     },
     /// Tuple type (e.g., `(Int32, String, Bool)`)
     Tuple(Vec<TypeExpr>),
+    /// Never type (e.g., `!`) - indicates a function never returns
+    Never,
 }
 
 /// Type parameter: `<T>`, `<T: Trait>`, `<T: Trait + Other>`.
@@ -888,6 +900,8 @@ pub enum Expr {
     Identifier(String),
     /// List literal: [expr, expr, ...]
     List(Vec<Expr>),
+    /// Tuple literal: (expr, expr, ...)
+    Tuple(Vec<Expr>),
     /// Binary operation
     Binary {
         /// Left operand
@@ -990,6 +1004,17 @@ pub enum Expr {
         /// Optional final expression (return value)
         final_expr: Option<Box<Expr>>,
     },
+    /// Type cast expression
+    /// Syntax: `expr as Type`
+    Cast {
+        /// Expression being cast
+        expr: Box<Expr>,
+        /// Target type
+        target_type: TypeExpr,
+    },
+    /// Try expression (error propagation)
+    /// Syntax: `expr?`
+    Try(Box<Expr>),
 }
 
 /// Literal value.
@@ -1242,6 +1267,8 @@ pub enum Pattern {
     },
     /// Tuple pattern
     Tuple(Vec<Pattern>),
+    /// Or pattern (alternatives)
+    Or(Vec<Pattern>),
 }
 
 /// Statement node for function bodies.
@@ -1380,6 +1407,8 @@ pub struct FunctionDecl {
     pub return_type: Option<TypeExpr>,
     /// Function body (statements)
     pub body: Vec<Stmt>,
+    /// Documentation for the function
+    pub exegesis: String,
     /// Source location
     pub span: Span,
 }
