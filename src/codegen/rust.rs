@@ -1030,7 +1030,12 @@ impl RustCodegen {
             } => {
                 output.push_str(&indent);
                 // DOL variables are mutable by default, so use 'let mut'
-                output.push_str("let mut ");
+                // Exception: can't use 'mut' with wildcard '_'
+                if name == "_" {
+                    output.push_str("let ");
+                } else {
+                    output.push_str("let mut ");
+                }
                 output.push_str(name);
                 if let Some(ty) = type_ann {
                     output.push_str(": ");
@@ -2711,12 +2716,17 @@ impl RustCodegen {
                                     }
                                 })
                                 .collect();
-                            format!(
-                                "{}({} {{ {}, .. }})",
-                                rust_name,
-                                wrapper_type,
-                                field_bindings.join(", ")
-                            )
+                            // Avoid ", .." when field_bindings is empty
+                            if field_bindings.is_empty() {
+                                format!("{}({} {{ .. }})", rust_name, wrapper_type)
+                            } else {
+                                format!(
+                                    "{}({} {{ {}, .. }})",
+                                    rust_name,
+                                    wrapper_type,
+                                    field_bindings.join(", ")
+                                )
+                            }
                         } else {
                             // No known fields, just use wildcard inner pattern
                             format!("{}({})", rust_name, wrapper_type)
@@ -2749,7 +2759,12 @@ impl RustCodegen {
                             })
                             .collect();
                         // Add `..` to ignore extra fields like `span`
-                        format!("{} {{ {}, .. }}", rust_name, field_bindings.join(", "))
+                        // Avoid ", .." when field_bindings is empty
+                        if field_bindings.is_empty() {
+                            format!("{} {{ .. }}", rust_name)
+                        } else {
+                            format!("{} {{ {}, .. }}", rust_name, field_bindings.join(", "))
+                        }
                     } else {
                         // Fall back to tuple-style pattern for unknown variants
                         let fields_str: Vec<String> = fields
