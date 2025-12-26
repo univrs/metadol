@@ -112,10 +112,10 @@ fn main() -> ExitCode {
                     "Generated".green().bold(),
                     args.output.display()
                 );
-                eprintln!("  {} src/{}.rs files", files.len(), "");
-                eprintln!("  {} lib.rs with mod declarations", "1");
-                eprintln!("  {} prelude.rs with re-exports", "1");
-                eprintln!("  {} Cargo.toml", "1");
+                eprintln!("  {} src/*.rs files", files.len());
+                eprintln!("  1 lib.rs with mod declarations");
+                eprintln!("  1 prelude.rs with re-exports");
+                eprintln!("  1 Cargo.toml");
             }
             ExitCode::SUCCESS
         }

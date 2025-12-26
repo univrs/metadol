@@ -1,6 +1,7 @@
 //! Stress tests for parser
 //! Complex parsing scenarios and edge cases
 
+#[allow(unused_imports)]
 use metadol::ast::*;
 use metadol::parser::Parser;
 

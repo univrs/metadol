@@ -1,7 +1,7 @@
 //! Exhaustive lexer tests
 //! Target: 200+ tests covering all token types
 
-use metadol::lexer::{Lexer, Token, TokenKind};
+use metadol::lexer::{Lexer, TokenKind};
 
 // ============================================================================
 // KEYWORDS (26 keywords)
