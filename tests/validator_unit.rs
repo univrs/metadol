@@ -210,7 +210,7 @@ fn validate_gene_with_many_fields() {
     for i in 0..10 {
         input.push_str(&format!("has field{}: Int64 ", i));
     }
-    input.push_str("}");
+    input.push('}');
 
     let file = Parser::new(&input).parse_file().unwrap();
     if let Some(decl) = file.declarations.first() {

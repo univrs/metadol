@@ -18,7 +18,7 @@ fn integration_lexer_produces_valid_stream() {
     let mut tokens = Vec::new();
     loop {
         let token = lexer.next_token();
-        tokens.push(token.kind.clone());
+        tokens.push(token.kind);
         if token.kind == TokenKind::Eof {
             break;
         }
@@ -364,10 +364,8 @@ fn span_covers_declaration() {
     assert!(result.is_ok());
 
     let file = result.unwrap();
-    if let Some(decl) = file.declarations.first() {
-        if let Declaration::Gene(gene) = decl {
-            assert!(gene.span.start < gene.span.end);
-        }
+    if let Some(Declaration::Gene(gene)) = file.declarations.first() {
+        assert!(gene.span.start < gene.span.end);
     }
 }
 
@@ -378,10 +376,8 @@ fn span_line_tracking() {
     assert!(result.is_ok());
 
     let file = result.unwrap();
-    if let Some(decl) = file.declarations.first() {
-        if let Declaration::Gene(gene) = decl {
-            assert!(gene.span.line >= 1);
-        }
+    if let Some(Declaration::Gene(gene)) = file.declarations.first() {
+        assert!(gene.span.line >= 1);
     }
 }
 

@@ -409,7 +409,7 @@ fn file_preserves_order() {
     let file = Parser::new("gene A { } gene B { } gene C { }")
         .parse_file()
         .unwrap();
-    if let Some(Declaration::Gene(gene)) = file.declarations.get(0) {
+    if let Some(Declaration::Gene(gene)) = file.declarations.first() {
         assert_eq!(gene.name, "A");
     }
     if let Some(Declaration::Gene(gene)) = file.declarations.get(1) {

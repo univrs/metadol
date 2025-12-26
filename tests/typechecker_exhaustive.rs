@@ -1,6 +1,8 @@
 //! Exhaustive type checker tests
 //! Target: 200+ tests for type inference and checking
 
+#![allow(unused_mut)]
+
 use metadol::parser::Parser;
 use metadol::typechecker::TypeChecker;
 

@@ -8,6 +8,7 @@
 //! 2. Update the `actual_variants!` section below
 //! 3. Run `cargo test`
 
+#[allow(unused_imports)]
 use metadol::lexer::{Lexer, Token};
 use metadol::parser::Parser;
 
@@ -17,6 +18,7 @@ use metadol::parser::Parser;
 
 /// Macro to test lexer produces expected token
 /// Adjust the pattern matching based on actual TokenKind structure
+#[allow(unused_macros)]
 macro_rules! lex_test {
     ($name:ident, $input:expr, $check:expr) => {
         #[test]
@@ -52,6 +54,7 @@ macro_rules! parse_test {
 }
 
 /// Macro for tests that should fail to parse
+#[allow(unused_macros)]
 macro_rules! parse_error_test {
     ($name:ident, $input:expr) => {
         #[test]
