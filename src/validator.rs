@@ -634,6 +634,7 @@ mod tests {
     fn make_gene(name: &str, exegesis: &str) -> Declaration {
         Declaration::Gene(Gene {
             name: name.to_string(),
+            extends: None,
             statements: vec![Statement::Has {
                 subject: "test".to_string(),
                 property: "property".to_string(),

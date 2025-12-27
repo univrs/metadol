@@ -537,6 +537,7 @@ mod tests {
     fn test_generate_gene_interface() {
         let gene = Gene {
             name: "container.exists".to_string(),
+            extends: None,
             statements: vec![
                 Statement::Has {
                     subject: "container".to_string(),

@@ -299,6 +299,7 @@ impl LintResult {
 ///
 /// let gene = Gene {
 ///     name: "test.gene".to_string(),
+///     extends: None,
 ///     statements: vec![],
 ///     exegesis: "Test gene".to_string(),
 ///     span: Span::default(),
@@ -528,6 +529,7 @@ mod tests {
 
         let gene = Gene {
             name: "test.gene".to_string(),
+            extends: None,
             statements: vec![Statement::Has {
                 subject: "test".to_string(),
                 property: "property".to_string(),
@@ -547,6 +549,7 @@ mod tests {
 
         let gene = Gene {
             name: "io.gene".to_string(),
+            extends: None,
             statements: vec![Statement::Has {
                 subject: "io".to_string(),
                 property: "file_read".to_string(),
@@ -576,6 +579,7 @@ mod tests {
 
         let gene = Gene {
             name: "test.gene".to_string(),
+            extends: None,
             statements,
             exegesis: "Test gene".to_string(),
             span: Span::default(),
@@ -593,6 +597,7 @@ mod tests {
 
         let gene = Gene {
             name: "test.gene".to_string(),
+            extends: None,
             statements: vec![],
             exegesis: "Short".to_string(), // Too short
             span: Span::default(),

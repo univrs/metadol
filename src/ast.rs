@@ -24,6 +24,7 @@
 //!
 //! let gene = Gene {
 //!     name: "container.exists".to_string(),
+//!     extends: None,
 //!     statements: vec![
 //!         Statement::Has {
 //!             subject: "container".to_string(),
@@ -398,6 +399,9 @@ impl Declaration {
 pub struct Gene {
     /// The fully qualified name using dot notation
     pub name: String,
+
+    /// Optional parent type this gene extends (v0.3.0)
+    pub extends: Option<String>,
 
     /// The declarative statements within the gene body
     pub statements: Vec<Statement>,
@@ -1525,6 +1529,7 @@ mod tests {
     fn test_declaration_name() {
         let gene = Gene {
             name: "container.exists".to_string(),
+            extends: None,
             statements: vec![],
             exegesis: "Test".to_string(),
             span: Span::default(),

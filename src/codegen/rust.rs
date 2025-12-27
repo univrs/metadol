@@ -3612,6 +3612,7 @@ mod tests {
     fn test_generate_gene_struct() {
         let gene = Gene {
             name: "container.exists".to_string(),
+            extends: None,
             statements: vec![
                 Statement::Has {
                     subject: "container".to_string(),
@@ -4729,6 +4730,7 @@ mod tests {
         let gen = RustCodegen::new();
         let gene = Gene {
             name: "TestStruct".to_string(),
+            extends: None,
             statements: vec![],
             exegesis: "Test".to_string(),
             span: Span::default(),
@@ -4743,6 +4745,7 @@ mod tests {
         let gen = RustCodegen::new();
         let gene = Gene {
             name: "TestStruct".to_string(),
+            extends: None,
             statements: vec![Statement::HasField(Box::new(crate::ast::HasField {
                 name: "data".to_string(),
                 type_: TypeExpr::Generic {
@@ -4770,6 +4773,7 @@ mod tests {
         let gen = RustCodegen::new();
         let gene = Gene {
             name: "TestStruct".to_string(),
+            extends: None,
             statements: vec![Statement::HasField(Box::new(crate::ast::HasField {
                 name: "data".to_string(),
                 type_: TypeExpr::Generic {

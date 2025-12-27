@@ -1,6 +1,6 @@
 [package]
 name = "dol"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.81"
 authors = ["Univrs <hello@univrs.io>"]
@@ -52,9 +52,14 @@ name = "dol-build-crate"
 path = "src/bin/dol-build-crate.rs"
 required-features = ["cli"]
 
+[[bin]]
+name = "dol-migrate"
+path = "src/bin/dol-migrate.rs"
+required-features = ["cli"]
+
 [features]
 default = []
-cli = ["dep:clap", "dep:anyhow", "dep:colored", "serde"]
+cli = ["dep:clap", "dep:anyhow", "dep:colored", "dep:regex", "serde"]
 serde = ["dep:serde", "dep:serde_json"]
 mlir = ["melior"]
 wasm = ["mlir", "wasmtime"]
@@ -71,6 +76,7 @@ home = "=0.5.9"
 clap = { version = "4.4", features = ["derive"], optional = true }
 anyhow = { version = "1.0", optional = true }
 colored = { version = "2.1", optional = true }
+regex = { version = "1", optional = true }
 
 # Optional: Serialization
 serde = { version = "1.0", features = ["derive"], optional = true }

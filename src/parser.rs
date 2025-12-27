@@ -190,6 +190,7 @@ impl<'a> Parser<'a> {
                             // Skip path (identifiers, ::, ., *, etc.)
             while self.current.kind != TokenKind::Eof
                 && self.current.kind != TokenKind::Gene
+                && self.current.kind != TokenKind::Type
                 && self.current.kind != TokenKind::Trait
                 && self.current.kind != TokenKind::Constraint
                 && self.current.kind != TokenKind::System
@@ -332,6 +333,7 @@ impl<'a> Parser<'a> {
                 // Return a placeholder for files that only have tests after the main content
                 return Ok(Declaration::Gene(Gene {
                     name: "_test_skipped".to_string(),
+                    extends: None,
                     statements: vec![],
                     exegesis: "Tests skipped".to_string(),
                     span: self.current.span,
@@ -354,6 +356,8 @@ impl<'a> Parser<'a> {
 
         match self.current.kind {
             TokenKind::Gene => self.parse_gene(),
+            // type is an alias for gene (v0.3.0)
+            TokenKind::Type => self.parse_type_declaration(),
             TokenKind::Trait => self.parse_trait(),
             TokenKind::Constraint => self.parse_constraint(),
             TokenKind::System => self.parse_system(),
@@ -382,6 +386,7 @@ impl<'a> Parser<'a> {
                 if self.current.kind == TokenKind::Eof {
                     Ok(Declaration::Gene(Gene {
                         name: "_module_doc".to_string(),
+                        extends: None,
                         statements: vec![],
                         exegesis: "Module-level documentation".to_string(),
                         span: self.current.span,
@@ -396,6 +401,7 @@ impl<'a> Parser<'a> {
                                 // Skip path (identifiers, ::, ., *, { }, etc.)
                 while self.current.kind != TokenKind::Eof
                     && self.current.kind != TokenKind::Gene
+                    && self.current.kind != TokenKind::Type
                     && self.current.kind != TokenKind::Trait
                     && self.current.kind != TokenKind::Constraint
                     && self.current.kind != TokenKind::System
@@ -413,6 +419,7 @@ impl<'a> Parser<'a> {
                 if self.current.kind == TokenKind::Eof {
                     Ok(Declaration::Gene(Gene {
                         name: "_use_only".to_string(),
+                        extends: None,
                         statements: vec![],
                         exegesis: "Use-only file".to_string(),
                         span: self.current.span,
@@ -446,6 +453,7 @@ impl<'a> Parser<'a> {
                 if self.current.kind == TokenKind::Eof {
                     Ok(Declaration::Gene(Gene {
                         name: "_module_decl".to_string(),
+                        extends: None,
                         statements: vec![],
                         exegesis: "Module-only file".to_string(),
                         span: self.current.span,
@@ -631,6 +639,15 @@ impl<'a> Parser<'a> {
         let name = self.expect_identifier()?;
         // Skip generic type parameters if present: <T, U: Bound>
         self.skip_type_params()?;
+
+        // Parse optional extends clause (v0.3.0): gene Foo extends Bar { ... }
+        let extends = if self.current.kind == TokenKind::Extends {
+            self.advance();
+            Some(self.expect_identifier()?)
+        } else {
+            None
+        };
+
         self.expect(TokenKind::LeftBrace)?;
 
         let statements = self.parse_statements()?;
@@ -654,6 +671,59 @@ impl<'a> Parser<'a> {
 
         Ok(Declaration::Gene(Gene {
             name,
+            extends,
+            statements,
+            exegesis,
+            span,
+        }))
+    }
+
+    /// Parses a type declaration (v0.3.0 - alias for gene).
+    ///
+    /// Type declarations work exactly like gene declarations but use the `type` keyword.
+    /// This provides an alternative syntax that may be more familiar to developers
+    /// coming from other languages.
+    fn parse_type_declaration(&mut self) -> Result<Declaration, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Type)?;
+
+        let name = self.expect_identifier()?;
+        // Skip generic type parameters if present: <T, U: Bound>
+        self.skip_type_params()?;
+
+        // Parse optional extends clause: type Foo extends Bar { ... }
+        let extends = if self.current.kind == TokenKind::Extends {
+            self.advance();
+            Some(self.expect_identifier()?)
+        } else {
+            None
+        };
+
+        self.expect(TokenKind::LeftBrace)?;
+
+        let statements = self.parse_statements()?;
+
+        // DOL 2.0: exegesis can be inside braces
+        let inline_exegesis = self.parse_inline_exegesis()?;
+
+        self.expect(TokenKind::RightBrace)?;
+
+        // DOL 1.0: exegesis can be after braces
+        // DOL 2.0: use inline or default to empty
+        let exegesis = if let Some(ex) = inline_exegesis {
+            ex
+        } else if self.current.kind == TokenKind::Exegesis {
+            self.parse_exegesis()?
+        } else {
+            String::new() // DOL 2.0 tolerant: empty exegesis if none
+        };
+
+        let span = start_span.merge(&self.previous.span);
+
+        // Type declarations are represented as Gene in the AST
+        Ok(Declaration::Gene(Gene {
+            name,
+            extends,
             statements,
             exegesis,
             span,
@@ -1114,8 +1184,8 @@ impl<'a> Parser<'a> {
             return self.parse_statement();
         }
 
-        // Parse subject
-        let subject = self.expect_identifier()?;
+        // Parse subject - allow keywords as field names (e.g., `type: Int64`)
+        let subject = self.expect_identifier_or_keyword()?;
 
         // Determine statement type based on predicate
         match self.current.kind {
@@ -1653,6 +1723,7 @@ impl<'a> Parser<'a> {
                 let var_decl = self.parse_sex_var()?;
                 Ok(Declaration::Gene(Gene {
                     name: var_decl.name.clone(),
+                    extends: None,
                     statements: vec![],
                     exegesis: format!("sex var {}", var_decl.name),
                     span: var_decl.span,
@@ -1669,6 +1740,7 @@ impl<'a> Parser<'a> {
                 // Keep extern functions as Gene placeholder (FFI stubs need special handling)
                 Ok(Declaration::Gene(Gene {
                     name: extern_decl.name.clone(),
+                    extends: None,
                     statements: vec![],
                     exegesis: format!("sex extern {}", extern_decl.name),
                     span: extern_decl.span,
@@ -1808,7 +1880,7 @@ impl<'a> Parser<'a> {
                 let is_struct_literal = self.current.kind == TokenKind::LeftBrace
                     && is_type_name
                     && (self.peek().kind == TokenKind::RightBrace
-                        || (self.peek().kind == TokenKind::Identifier
+                        || (Self::is_identifier_like(self.peek().kind)
                             && self.peek2().kind == TokenKind::Colon));
 
                 if is_struct_literal {
@@ -1929,9 +2001,9 @@ impl<'a> Parser<'a> {
 
                     // Use two-token lookahead to check for struct literal pattern
                     // - Empty: `Foo {}` - next token is `}`
-                    // - With fields: `Foo { x: y }` - next is identifier, then `:`
+                    // - With fields: `Foo { x: y }` - next is identifier or keyword, then `:`
                     let is_struct_literal = self.peek().kind == TokenKind::RightBrace
-                        || (self.peek().kind == TokenKind::Identifier
+                        || (Self::is_identifier_like(self.peek().kind)
                             && self.peek2().kind == TokenKind::Colon);
 
                     if !is_struct_literal {
@@ -2076,6 +2148,10 @@ impl<'a> Parser<'a> {
             | TokenKind::State
             | TokenKind::Module
             | TokenKind::Use
+            // v0.3.0 keywords that may appear as identifiers
+            | TokenKind::Type
+            | TokenKind::Val
+            | TokenKind::Extends
             // Type keywords for referencing type enum variants
             | TokenKind::Int8
             | TokenKind::Int16
@@ -2147,6 +2223,11 @@ impl<'a> Parser<'a> {
 
             // Match expression
             TokenKind::Match => self.parse_match_expr(),
+
+            // Forall quantifier expression (v0.3.0)
+            // Syntax 1: forall x: T. expr (first-order logic style)
+            // Syntax 2: forall x in iter { body } (iterator style)
+            TokenKind::Forall => self.parse_forall_expr(),
 
             // Block expression
             TokenKind::LeftBrace => self.parse_block_expr(),
@@ -2457,6 +2538,92 @@ impl<'a> Parser<'a> {
         Ok(Expr::Match { scrutinee, arms })
     }
 
+    /// Parses a forall quantifier expression (v0.3.0).
+    ///
+    /// Supports two syntaxes:
+    /// - `forall x: T. expr` - First-order logic style with type annotation
+    /// - `forall x in iter { body }` - Iterator style for collections
+    fn parse_forall_expr(&mut self) -> Result<Expr, ParseError> {
+        let start_span = self.current.span;
+        self.expect(TokenKind::Forall)?;
+
+        let var = self.expect_identifier()?;
+
+        // Check for type-annotated syntax: forall x: T. expr
+        if self.current.kind == TokenKind::Colon {
+            self.advance();
+            let type_ = self.parse_type()?;
+
+            // Expect dot separator for the body
+            self.expect(TokenKind::Dot)?;
+
+            let body = self.parse_expr(0)?;
+            let span = start_span.merge(&self.previous.span);
+
+            Ok(Expr::Forall(ForallExpr {
+                var,
+                type_,
+                body: Box::new(body),
+                span,
+            }))
+        } else if self.current.kind == TokenKind::In {
+            // Iterator syntax: forall x in iter { body }
+            self.advance();
+            let iter = self.parse_expr(0)?;
+
+            self.expect(TokenKind::LeftBrace)?;
+            let mut statements = Vec::new();
+            let mut final_expr = None;
+
+            while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof
+            {
+                if self.is_statement_keyword() {
+                    statements.push(self.parse_stmt()?);
+                } else {
+                    let expr = self.parse_expr(0)?;
+                    // Check if this is the final expression or needs to be a statement
+                    if self.current.kind == TokenKind::Semicolon {
+                        self.advance();
+                        statements.push(Stmt::Expr(expr));
+                    } else if self.current.kind == TokenKind::RightBrace {
+                        final_expr = Some(expr);
+                    } else {
+                        statements.push(Stmt::Expr(expr));
+                    }
+                }
+            }
+
+            self.expect(TokenKind::RightBrace)?;
+            let span = start_span.merge(&self.previous.span);
+
+            // For iterator-style forall, wrap in a Block that represents the comprehension
+            // Use a synthetic Inferred type since we don't know the element type statically
+            let body = Expr::Block {
+                statements,
+                final_expr: final_expr.map(Box::new),
+            };
+
+            // Create a ForallExpr using a placeholder type to indicate iterator-style
+            // The underscore "_" indicates the type should be inferred from the iterator
+            Ok(Expr::Forall(ForallExpr {
+                var,
+                type_: TypeExpr::Named("_".to_string()),
+                body: Box::new(Expr::Binary {
+                    left: Box::new(iter),
+                    op: BinaryOp::Member,
+                    right: Box::new(body),
+                }),
+                span,
+            }))
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: ": or in".to_string(),
+                found: format!("'{}'", self.current.lexeme),
+                span: self.current.span,
+            })
+        }
+    }
+
     /// Parses a pattern for match expressions.
     pub fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
         match self.current.kind {
@@ -2499,7 +2666,12 @@ impl<'a> Parser<'a> {
             | TokenKind::Float64
             | TokenKind::BoolType
             | TokenKind::StringType
-            | TokenKind::VoidType => {
+            | TokenKind::VoidType
+            // v0.3.0 keywords that may appear as identifiers in patterns
+            | TokenKind::Type
+            | TokenKind::Val
+            | TokenKind::Extends
+            | TokenKind::Forall => {
                 let name = self.current.lexeme.clone();
                 self.advance();
                 Ok(Pattern::Identifier(name))
@@ -2698,11 +2870,71 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Checks if a token kind can be used as an identifier (for struct field names, etc.)
+    fn is_identifier_like(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Identifier
+                | TokenKind::Gene
+                | TokenKind::Trait
+                | TokenKind::System
+                | TokenKind::Constraint
+                | TokenKind::Evolves
+                | TokenKind::Exegesis
+                | TokenKind::Test
+                | TokenKind::Law
+                | TokenKind::State
+                | TokenKind::Module
+                | TokenKind::Use
+                | TokenKind::Uses
+                | TokenKind::Migrate
+                | TokenKind::Pub
+                | TokenKind::Has
+                | TokenKind::Is
+                | TokenKind::Requires
+                | TokenKind::Var
+                | TokenKind::Let
+                | TokenKind::Function
+                | TokenKind::Return
+                | TokenKind::If
+                | TokenKind::Else
+                | TokenKind::Match
+                | TokenKind::For
+                | TokenKind::While
+                | TokenKind::Loop
+                | TokenKind::In
+                | TokenKind::Break
+                | TokenKind::Continue
+                | TokenKind::Where
+                | TokenKind::True
+                | TokenKind::False
+                | TokenKind::From
+                | TokenKind::Int8
+                | TokenKind::Int16
+                | TokenKind::Int32
+                | TokenKind::Int64
+                | TokenKind::UInt8
+                | TokenKind::UInt16
+                | TokenKind::UInt32
+                | TokenKind::UInt64
+                | TokenKind::Float32
+                | TokenKind::Float64
+                | TokenKind::BoolType
+                | TokenKind::StringType
+                | TokenKind::VoidType
+                | TokenKind::Type
+                | TokenKind::Val
+                | TokenKind::Extends
+                | TokenKind::Forall
+        )
+    }
+
     /// Checks if the current token is a statement keyword.
     fn is_statement_keyword(&self) -> bool {
         matches!(
             self.current.kind,
             TokenKind::Let
+                | TokenKind::Val
                 | TokenKind::Var
                 | TokenKind::Const
                 | TokenKind::For
@@ -2761,6 +2993,46 @@ impl<'a> Parser<'a> {
                 };
                 self.consume_optional_semicolon();
 
+                Ok(Stmt::Let {
+                    name,
+                    type_ann,
+                    value,
+                })
+            }
+            // val x: Type = expr (immutable binding, v0.3.0)
+            TokenKind::Val => {
+                self.advance();
+                // Support `val _ = ...` discard pattern
+                let name = if self.current.kind == TokenKind::Underscore {
+                    self.advance();
+                    "_".to_string()
+                } else {
+                    self.expect_identifier_or_keyword()?
+                };
+
+                let type_ann = if self.current.kind == TokenKind::Colon {
+                    self.advance();
+                    Some(self.parse_type()?)
+                } else {
+                    None
+                };
+
+                // Value is optional if type annotation is provided
+                let value = if self.current.kind == TokenKind::Equal {
+                    self.advance();
+                    self.parse_expr(0)?
+                } else if type_ann.is_some() {
+                    Expr::Identifier("__uninitialized__".to_string())
+                } else {
+                    return Err(ParseError::UnexpectedToken {
+                        expected: "= or type annotation".to_string(),
+                        found: format!("'{}'", self.current.lexeme),
+                        span: self.current.span,
+                    });
+                };
+                self.consume_optional_semicolon();
+
+                // val is semantically equivalent to let (immutable)
                 Ok(Stmt::Let {
                     name,
                     type_ann,
@@ -3583,7 +3855,12 @@ impl<'a> Parser<'a> {
             | TokenKind::Float64
             | TokenKind::BoolType
             | TokenKind::StringType
-            | TokenKind::VoidType => {
+            | TokenKind::VoidType
+            // v0.3.0 keywords that can be used as identifiers
+            | TokenKind::Type
+            | TokenKind::Val
+            | TokenKind::Extends
+            | TokenKind::Forall => {
                 let lexeme = self.current.lexeme.clone();
                 self.advance();
                 Ok(lexeme)

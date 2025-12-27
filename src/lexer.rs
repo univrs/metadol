@@ -256,6 +256,8 @@ pub enum TokenKind {
     Sex,
     /// The `var` keyword (mutable variable)
     Var,
+    /// The `val` keyword - immutable binding (v0.3.0)
+    Val,
     /// The `const` keyword
     Const,
     /// The `extern` keyword
@@ -284,6 +286,10 @@ pub enum TokenKind {
     Not,
     /// The `migrate` keyword
     Migrate,
+    /// The `extends` keyword - inheritance (v0.3.0)
+    Extends,
+    /// The `type` keyword - type declaration (v0.3.0)
+    Type,
 
     // === Boolean and Null Literals (DOL 2.0) ===
     /// The `true` literal
@@ -445,6 +451,7 @@ impl TokenKind {
                 // DOL 2.0 SEX Keywords
                 | TokenKind::Sex
                 | TokenKind::Var
+                | TokenKind::Val
                 | TokenKind::Const
                 | TokenKind::Extern
                 // DOL 2.0 Logic Keywords
@@ -459,6 +466,8 @@ impl TokenKind {
                 | TokenKind::Mut
                 | TokenKind::Not
                 | TokenKind::Migrate
+                | TokenKind::Extends
+                | TokenKind::Type
                 // DOL 2.0 Boolean and Null Literals
                 | TokenKind::True
                 | TokenKind::False
@@ -568,6 +577,7 @@ impl std::fmt::Display for TokenKind {
             // DOL 2.0 SEX Keywords
             TokenKind::Sex => write!(f, "sex"),
             TokenKind::Var => write!(f, "var"),
+            TokenKind::Val => write!(f, "val"),
             TokenKind::Const => write!(f, "const"),
             TokenKind::Extern => write!(f, "extern"),
             // DOL 2.0 Logic Keywords
@@ -582,6 +592,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Mut => write!(f, "mut"),
             TokenKind::Not => write!(f, "not"),
             TokenKind::Migrate => write!(f, "migrate"),
+            TokenKind::Extends => write!(f, "extends"),
+            TokenKind::Type => write!(f, "type"),
             // DOL 2.0 Boolean and Null Literals
             TokenKind::True => write!(f, "true"),
             TokenKind::False => write!(f, "false"),
@@ -1236,6 +1248,7 @@ impl<'a> Lexer<'a> {
             // DOL 2.0 SEX keywords
             "sex" => Some(TokenKind::Sex),
             "var" => Some(TokenKind::Var),
+            "val" => Some(TokenKind::Val),
             "const" => Some(TokenKind::Const),
             "extern" => Some(TokenKind::Extern),
             // DOL 2.0 logic keywords
@@ -1250,6 +1263,8 @@ impl<'a> Lexer<'a> {
             "mut" => Some(TokenKind::Mut),
             "not" => Some(TokenKind::Not),
             "migrate" => Some(TokenKind::Migrate),
+            "extends" => Some(TokenKind::Extends),
+            "type" => Some(TokenKind::Type),
             // DOL 2.0 boolean and null literals
             "true" => Some(TokenKind::True),
             "false" => Some(TokenKind::False),
@@ -1504,5 +1519,15 @@ mod tests {
         let mut lexer = Lexer::new(": :=");
         assert_eq!(lexer.next_token().kind, TokenKind::Colon);
         assert_eq!(lexer.next_token().kind, TokenKind::Bind);
+    }
+
+    #[test]
+    fn test_v030_keywords() {
+        let mut lexer = Lexer::new("val var extends forall type");
+        assert_eq!(lexer.next_token().kind, TokenKind::Val);
+        assert_eq!(lexer.next_token().kind, TokenKind::Var);
+        assert_eq!(lexer.next_token().kind, TokenKind::Extends);
+        assert_eq!(lexer.next_token().kind, TokenKind::Forall);
+        assert_eq!(lexer.next_token().kind, TokenKind::Type);
     }
 }

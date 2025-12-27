@@ -13,6 +13,7 @@ use metadol::codegen::{RustCodegen, TypeMapper};
 #[test]
 fn test_codegen_simple_gene() {
     let gene = Gene {
+        extends: None,
         name: "Point".to_string(),
         statements: vec![
             Statement::HasField(Box::new(HasField {
@@ -53,6 +54,7 @@ fn test_codegen_simple_gene() {
 #[test]
 fn test_codegen_gene_with_constraint() {
     let gene = Gene {
+        extends: None,
         name: "PositiveNumber".to_string(),
         statements: vec![Statement::HasField(Box::new(HasField {
             name: "value".to_string(),
@@ -92,6 +94,7 @@ fn test_codegen_gene_with_constraint() {
 #[test]
 fn test_codegen_gene_with_multiple_types() {
     let gene = Gene {
+        extends: None,
         name: "User".to_string(),
         statements: vec![
             Statement::HasField(Box::new(HasField {
@@ -153,6 +156,7 @@ fn test_codegen_gene_with_multiple_types() {
 #[test]
 fn test_codegen_gene_with_legacy_has_statement() {
     let gene = Gene {
+        extends: None,
         name: "Legacy".to_string(),
         statements: vec![
             Statement::Has {
@@ -796,6 +800,7 @@ fn test_codegen_type_mapping_nested_generics() {
 #[test]
 fn test_codegen_generate_all() {
     let gene = Gene {
+        extends: None,
         name: "Point".to_string(),
         statements: vec![Statement::HasField(Box::new(HasField {
             name: "x".to_string(),
@@ -848,6 +853,7 @@ fn test_codegen_gen_visibility() {
 fn test_codegen_type_info() {
     let gen = RustCodegen::new();
     let gene = Gene {
+        extends: None,
         name: "User".to_string(),
         statements: vec![
             Statement::Has {
@@ -876,6 +882,7 @@ fn test_codegen_type_info() {
 fn test_codegen_type_registry() {
     let gen = RustCodegen::new();
     let gene1 = Gene {
+        extends: None,
         name: "Point".to_string(),
         statements: vec![],
         exegesis: "A point".to_string(),
@@ -883,6 +890,7 @@ fn test_codegen_type_registry() {
     };
 
     let gene2 = Gene {
+        extends: None,
         name: "Line".to_string(),
         statements: vec![],
         exegesis: "A line".to_string(),
@@ -939,6 +947,7 @@ fn test_codegen_gen_param_complex_type() {
 fn test_codegen_naming_snake_to_pascal() {
     // Test that gene names are converted to PascalCase
     let gene = Gene {
+        extends: None,
         name: "my.special.gene".to_string(),
         statements: vec![],
         exegesis: "Test".to_string(),
@@ -956,6 +965,7 @@ fn test_codegen_naming_snake_to_pascal() {
 fn test_codegen_naming_field_snake_case() {
     // Test that field names are converted to snake_case
     let gene = Gene {
+        extends: None,
         name: "Test".to_string(),
         statements: vec![Statement::HasField(Box::new(HasField {
             name: "MyField".to_string(),
@@ -982,6 +992,7 @@ fn test_codegen_naming_field_snake_case() {
 #[test]
 fn test_codegen_empty_gene() {
     let gene = Gene {
+        extends: None,
         name: "Empty".to_string(),
         statements: vec![],
         exegesis: "Empty gene".to_string(),
@@ -1009,6 +1020,7 @@ fn test_codegen_empty_trait() {
 #[test]
 fn test_codegen_multiline_exegesis() {
     let gene = Gene {
+        extends: None,
         name: "Test".to_string(),
         statements: vec![],
         exegesis: "Line 1\nLine 2\nLine 3".to_string(),

@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-12-27 - "HIR"
+
+### Language Changes
+
+#### New Syntax
+- `val` for immutable bindings (replaces `let`)
+- `var` for mutable bindings (replaces `let mut`)
+- `type` as preferred type declaration keyword
+- `extends` for inheritance (replaces `derives from`)
+- `forall` as unified quantifier (replaces `each`/`all`)
+
+#### Deprecated Syntax (warnings in 0.3, errors in 0.4)
+- `let` → use `val`
+- `let mut` → use `var`
+- `each` → use `forall`
+- `all` (quantifier) → use `forall`
+- `module` → use `mod`
+- `never` → use `not`
+- `derives from` → use `extends`
+- `matches` → use `==`
+
+### Internal Changes
+- Added HIR (High-level Intermediate Representation)
+- Reduced AST complexity from 50+ to 22 node types
+- Simplified codegen via canonical HIR forms
+- Added migration tool: `dol-migrate --from 0.2 --to 0.3`
+
+### New Modules
+- `hir/` - HIR type definitions and utilities
+- `lower/` - AST to HIR lowering with desugaring
+- `codegen/hir_rust.rs` - HIR-based Rust code generation
+
+### Migration
+
+```bash
+# Auto-migrate your DOL files
+cargo run --bin dol-migrate -- --from 0.2 --to 0.3 src/
+```
+
 ## [0.2.2] - 2024-12-26 - "Bootstrap"
 
 ### Added
@@ -148,7 +187,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/univrs/dol/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/univrs/dol/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/univrs/dol/compare/v0.2.3...v0.3.0
+[0.2.3]: https://github.com/univrs/dol/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/univrs/dol/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/univrs/dol/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/univrs/dol/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/univrs/dol/compare/v0.0.1...v0.1.0

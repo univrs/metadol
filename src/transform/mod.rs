@@ -190,6 +190,7 @@ mod tests {
 
         let gene = Gene {
             name: "test".to_string(),
+            extends: None,
             statements: vec![],
             exegesis: "Test gene".to_string(),
             span: Span::new(0, 0, 1, 1),

@@ -280,6 +280,7 @@ pub trait Fold {
     fn fold_gene(&mut self, gene: Gene) -> Gene {
         Gene {
             name: gene.name,
+            extends: gene.extends,
             statements: gene
                 .statements
                 .into_iter()

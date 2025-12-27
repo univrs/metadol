@@ -719,7 +719,7 @@ dependencies = [
 
 [[package]]
 name = "dol"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -730,6 +730,7 @@ dependencies = [
  "logos",
  "melior",
  "pretty_assertions",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",

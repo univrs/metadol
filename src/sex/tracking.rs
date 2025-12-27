@@ -116,6 +116,7 @@ impl Effect {
 ///
 /// let gene = Gene {
 ///     name: "test.gene".to_string(),
+///     extends: None,
 ///     statements: vec![],
 ///     exegesis: "Test".to_string(),
 ///     span: Span::default(),
@@ -432,6 +433,7 @@ mod tests {
 
         let gene = Gene {
             name: "io.gene".to_string(),
+            extends: None,
             statements: vec![Statement::Has {
                 subject: "io".to_string(),
                 property: "file_read".to_string(),
