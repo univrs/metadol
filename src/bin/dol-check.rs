@@ -290,6 +290,18 @@ fn check_file(
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // ADD THIS BLOCK - v0.3.0: Always warn about empty exegesis
+    // ═══════════════════════════════════════════════════════════════════
+    if exegesis.trim().is_empty() && !args.require_exegesis {
+        warnings.push(CheckWarning {
+            path: path.clone(),
+            message: format!("'{}' has no exegesis", decl.name()),
+            line: None,
+        });
+    }
+    // ═══════════════════════════════════════════════════════════════════
+
     if !errors.is_empty() {
         return Err(errors);
     }

@@ -177,12 +177,6 @@ fn validate_exegesis(decl: &Declaration, result: &mut ValidationResult) {
     let exegesis = decl.exegesis();
     let span = decl.span();
 
-    // Check for empty exegesis
-    if exegesis.trim().is_empty() {
-        result.add_error(ValidationError::EmptyExegesis { span });
-        return;
-    }
-
     // Warn about very short exegesis
     let trimmed_len = exegesis.trim().len();
     if trimmed_len < 20 {
@@ -660,10 +654,6 @@ mod tests {
         let decl = make_gene("container.exists", "");
         let result = validate(&decl);
         assert!(!result.is_valid());
-        assert!(matches!(
-            result.errors[0],
-            ValidationError::EmptyExegesis { .. }
-        ));
     }
 
     #[test]

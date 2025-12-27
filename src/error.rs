@@ -164,13 +164,6 @@ impl ParseError {
 /// the AST violates semantic rules that cannot be caught during parsing.
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ValidationError {
-    /// The exegesis block is empty or contains only whitespace.
-    #[error("exegesis block is empty at line {}, column {}", span.line, span.column)]
-    EmptyExegesis {
-        /// Location of the empty exegesis
-        span: Span,
-    },
-
     /// An identifier does not follow naming conventions.
     #[error("invalid identifier '{name}': {reason}")]
     InvalidIdentifier {
@@ -369,9 +362,6 @@ mod tests {
         let mut errors = ValidationErrors::new();
         assert!(errors.is_empty());
 
-        errors.add_error(ValidationError::EmptyExegesis {
-            span: Span::default(),
-        });
         assert!(errors.has_errors());
         assert!(!errors.has_warnings());
 
