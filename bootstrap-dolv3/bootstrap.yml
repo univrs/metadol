@@ -1,0 +1,77 @@
+name: DOL Bootstrap CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'dol/**'
+      - 'src/codegen/**'
+      - 'target/bootstrap/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'dol/**'
+      - 'src/codegen/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-dol:
+    name: Check DOL Source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+      - name: Build dol-check
+        run: cargo build --release --features cli --bin dol-check
+      - name: Check DOL files
+        run: cargo run --release --features cli --bin dol-check -- dol/*.dol
+
+  bootstrap:
+    name: Bootstrap Compilation
+    runs-on: ubuntu-latest
+    needs: check-dol
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+      - name: Build codegen
+        run: cargo build --release --features cli --bin dol-codegen
+      - name: Regenerate bootstrap
+        run: |
+          mkdir -p target/bootstrap/src
+          for module in types token ast lexer; do
+            cargo run --release --features cli --bin dol-codegen -- \
+              --target rust "dol/${module}.dol" 2>/dev/null \
+              > "target/bootstrap/src/${module}.rs"
+          done
+      - name: Apply bootstrap fixes
+        run: |
+          chmod +x scripts/bootstrap-fix.sh
+          ./scripts/bootstrap-fix.sh
+      - name: Check bootstrap compiles
+        run: |
+          cd target/bootstrap
+          ERROR_COUNT=$(cargo check 2>&1 | grep "^error\[" | wc -l)
+          echo "Errors: $ERROR_COUNT"
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "❌ Bootstrap has $ERROR_COUNT errors"
+            exit 1
+          fi
+          echo "✓ Bootstrap compiles"
+      - name: Build bootstrap release
+        run: |
+          cd target/bootstrap
+          cargo build --release
+
+  test:
+    name: Compiler Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+      - name: Run tests
+        run: cargo test --lib

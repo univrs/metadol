@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOL Bootstrap Makefile
+# ═══════════════════════════════════════════════════════════════════════════════
+
+.PHONY: all bootstrap check test clean regen fix verify help
+
+PROJECT_ROOT := $(shell pwd)
+BOOTSTRAP_DIR := $(PROJECT_ROOT)/target/bootstrap
+BOOTSTRAP_SRC := $(BOOTSTRAP_DIR)/src
+DOL_DIR := $(PROJECT_ROOT)/dol
+MODULES := types token ast lexer
+
+all: bootstrap
+
+## Full bootstrap: regenerate, fix, and build
+bootstrap: regen fix verify
+	@echo "✓ Bootstrap complete"
+
+## Regenerate Rust files from DOL source
+regen:
+	@echo "Regenerating Rust files from DOL source..."
+	@mkdir -p $(BOOTSTRAP_SRC)
+	@for module in $(MODULES); do \
+		echo "  Generating $${module}.rs..."; \
+		cargo run --release --features cli --bin dol-codegen -- \
+			--target rust "$(DOL_DIR)/$${module}.dol" 2>/dev/null \
+			> "$(BOOTSTRAP_SRC)/$${module}.rs"; \
+	done
+
+## Apply fixes to generated code
+fix:
+	@echo "Applying bootstrap fixes..."
+	@./scripts/bootstrap-fix.sh
+
+## Verify bootstrap compiles
+verify:
+	@echo "Verifying bootstrap..."
+	@cd $(BOOTSTRAP_DIR) && cargo build --release 2>&1 | tail -3
+
+## Check DOL source files parse correctly
+check:
+	@echo "Checking DOL source files..."
+	@cargo run --features cli --bin dol-check -- $(DOL_DIR)/*.dol
+
+## Check bootstrap compiles (without building)
+check-bootstrap:
+	@cd $(BOOTSTRAP_DIR) && cargo check 2>&1 | grep "^error\[" | wc -l | \
+		xargs -I {} sh -c 'if [ {} -eq 0 ]; then echo "✓ Bootstrap OK"; else echo "✗ {} errors"; fi'
+
+## Count bootstrap errors
+errors:
+	@cd $(BOOTSTRAP_DIR) && cargo check 2>&1 | grep "^error\[" | sort | uniq -c | sort -rn
+
+## Run all tests
+test:
+	@cargo test --lib 2>&1 | tail -5
+
+## Clean all build artifacts
+clean:
+	@cargo clean
+	@rm -rf $(BOOTSTRAP_DIR)/target
+
+## Clean only bootstrap
+clean-bootstrap:
+	@rm -rf $(BOOTSTRAP_DIR)/target
+	@rm -f $(BOOTSTRAP_SRC)/*.rs
+
+## Show help
+help:
+	@echo "DOL Bootstrap Makefile"
+	@echo ""
+	@echo "Bootstrap:"
+	@echo "  make bootstrap      Full regenerate + fix + build"
+	@echo "  make regen          Regenerate Rust from DOL"
+	@echo "  make fix            Apply codegen fixes"
+	@echo "  make verify         Verify bootstrap compiles"
+	@echo ""
+	@echo "Check:"
+	@echo "  make check          Check DOL source files"
+	@echo "  make check-bootstrap Check bootstrap compiles"
+	@echo "  make errors         Show error breakdown"
+	@echo ""
+	@echo "Other:"
+	@echo "  make test           Run tests"
+	@echo "  make clean          Clean all"
