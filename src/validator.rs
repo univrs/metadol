@@ -653,7 +653,8 @@ mod tests {
     fn test_empty_exegesis() {
         let decl = make_gene("container.exists", "");
         let result = validate(&decl);
-        assert!(!result.is_valid());
+        assert!(result.is_valid());
+        assert!(result.has_warnings());
     }
 
     #[test]

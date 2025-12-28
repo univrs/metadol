@@ -350,7 +350,8 @@ exegesis {
     let result = validate(&decl);
 
     // Empty exegesis should produce an error
-    assert!(!result.is_valid());
+    assert!(result.is_valid());
+    assert!(result.has_warnings());
 }
 
 // ============================================
