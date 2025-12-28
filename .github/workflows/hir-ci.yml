@@ -1,0 +1,229 @@
+name: HIR CI
+
+on:
+  push:
+    branches: [main, "feature/hir-*", "feature/mlir-*"]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # COMPILATION CHECK
+  # ═══════════════════════════════════════════════════════════════════════════════
+  check:
+    name: Compilation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Check compilation
+        run: cargo check --all-targets
+        
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+        
+      - name: Format check
+        run: cargo fmt --check
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # TEST SUITE
+  # ═══════════════════════════════════════════════════════════════════════════════
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Run library tests
+        run: cargo test --lib
+        
+      - name: Run doc tests
+        run: cargo test --doc
+        
+      - name: Run HIR tests
+        run: cargo test hir
+        
+      - name: Run validation tests
+        run: cargo test validate
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # DOL SELF-VALIDATION
+  # ═══════════════════════════════════════════════════════════════════════════════
+  validate:
+    name: DOL Self-Validation
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Build dol-check
+        run: cargo build --bin dol-check --features cli
+        
+      - name: Validate DOL files
+        run: |
+          echo "Validating DOL specification files..."
+          cargo run --bin dol-check --features cli -- dol/
+          
+      - name: Check validation result
+        run: |
+          RESULT=$(cargo run --bin dol-check --features cli -- dol/ 2>&1)
+          if echo "$RESULT" | grep -q "Failed:.*[1-9]"; then
+            echo "DOL validation failed!"
+            exit 1
+          fi
+          echo "All DOL files pass validation"
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # HIR COMPLETION CHECK
+  # ═══════════════════════════════════════════════════════════════════════════════
+  hir-check:
+    name: HIR Completion Check
+    runs-on: ubuntu-latest
+    needs: [test, validate]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check HIR files exist
+        run: |
+          echo "Checking HIR module files..."
+          for f in types.rs mod.rs validate.rs desugar.rs; do
+            if [ -f "src/hir/$f" ]; then
+              echo "✅ src/hir/$f exists"
+            else
+              echo "❌ src/hir/$f missing"
+              exit 1
+            fi
+          done
+          
+      - name: Check no disabled files
+        run: |
+          DISABLED=$(find src -name "*.disabled" | wc -l)
+          if [ "$DISABLED" -gt 0 ]; then
+            echo "❌ Found $DISABLED .disabled files"
+            find src -name "*.disabled"
+            exit 1
+          fi
+          echo "✅ No disabled files"
+          
+      - name: Check codegen exported
+        run: |
+          if grep -q "pub mod hir_rust" src/codegen/mod.rs; then
+            echo "✅ hir_rust module exported"
+          else
+            echo "❌ hir_rust module not exported"
+            exit 1
+          fi
+          
+      - name: Check specification exists
+        run: |
+          if [ -f "docs/hir/HIR-SPECIFICATION.md" ]; then
+            LINES=$(wc -l < docs/hir/HIR-SPECIFICATION.md)
+            echo "✅ HIR-SPECIFICATION.md exists ($LINES lines)"
+          else
+            echo "❌ HIR-SPECIFICATION.md missing"
+            exit 1
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # CODE COVERAGE (optional)
+  # ═══════════════════════════════════════════════════════════════════════════════
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+        
+      - name: Run coverage
+        run: cargo tarpaulin --out Xml
+        
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: cobertura.xml
+          fail_ci_if_error: false
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # SUMMARY
+  # ═══════════════════════════════════════════════════════════════════════════════
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [check, test, validate, hir-check]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "                    CI SUMMARY"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "Compilation: ${{ needs.check.result }}"
+          echo "Tests:       ${{ needs.test.result }}"
+          echo "Validation:  ${{ needs.validate.result }}"
+          echo "HIR Check:   ${{ needs.hir-check.result }}"
+          echo ""
+          
+          if [ "${{ needs.check.result }}" = "success" ] && \
+             [ "${{ needs.test.result }}" = "success" ] && \
+             [ "${{ needs.validate.result }}" = "success" ] && \
+             [ "${{ needs.hir-check.result }}" = "success" ]; then
+            echo "✅ All checks passed - ready to merge"
+          else
+            echo "❌ Some checks failed"
+            exit 1
+          fi
