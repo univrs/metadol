@@ -1,0 +1,7 @@
+fun describe(n: Int64) -> String {
+    match n {
+        0 { return "zero" }
+        1 { return "one" }
+        _ { return "many" }
+    }
+}

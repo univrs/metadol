@@ -1,6 +1,7 @@
 archive/
 archives/
 archive_docs/
+flywheel/
 
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt

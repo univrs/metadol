@@ -1,0 +1,11 @@
+gene Counter {
+    has value: Int64
+    
+    fun increment() -> Int64 {
+        return self.value + 1
+    }
+    
+    fun reset() {
+        self.value = 0
+    }
+}

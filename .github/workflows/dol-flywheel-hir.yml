@@ -1,0 +1,293 @@
+name: DOL Flywheel + HIR
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 1: PARSE DOL SOURCE
+  # ═══════════════════════════════════════════════════════════════════════════
+  parse:
+    name: 🔍 Parse DOL
+    runs-on: ubuntu-latest
+    outputs:
+      dol_files: ${{ steps.metrics.outputs.files }}
+      dol_lines: ${{ steps.metrics.outputs.lines }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      
+      - name: Build dol-check
+        run: cargo build --release --features cli --bin dol-check
+        
+      - name: Parse all DOL files
+        run: |
+          PASSED=0
+          for f in dol/*.dol; do
+            if cargo run --release --features cli --bin dol-check -- "$f" 2>/dev/null; then
+              ((PASSED++))
+            else
+              echo "❌ Failed: $f"
+              exit 1
+            fi
+          done
+          echo "✅ Parsed $PASSED DOL files"
+          
+      - name: Collect metrics
+        id: metrics
+        run: |
+          echo "files=$(find dol -name '*.dol' | wc -l)" >> $GITHUB_OUTPUT
+          echo "lines=$(wc -l dol/*.dol | tail -1 | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 2: DESUGAR TO HIR (New!)
+  # ═══════════════════════════════════════════════════════════════════════════
+  desugar:
+    name: 🔄 Desugar → HIR
+    runs-on: ubuntu-latest
+    needs: parse
+    outputs:
+      hir_coverage: ${{ steps.hir.outputs.coverage }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      
+      - name: Build dol-desugar
+        run: |
+          if cargo build --release --features cli --bin dol-desugar 2>/dev/null; then
+            echo "HIR_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "HIR_AVAILABLE=false" >> $GITHUB_ENV
+            echo "⏳ HIR not yet implemented"
+          fi
+          
+      - name: Desugar DOL → HIR
+        if: env.HIR_AVAILABLE == 'true'
+        run: |
+          for f in dol/*.dol; do
+            cargo run --release --features cli --bin dol-desugar -- "$f"
+          done
+          
+      - name: HIR Coverage
+        id: hir
+        run: |
+          if [ "$HIR_AVAILABLE" == "true" ]; then
+            # Count implemented desugar rules vs total needed
+            COVERAGE=$(cargo run --release --features cli --bin dol-desugar -- --coverage 2>/dev/null || echo "0")
+          else
+            COVERAGE="0"
+          fi
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 3: GENERATE RUST (Current Path)
+  # ═══════════════════════════════════════════════════════════════════════════
+  generate:
+    name: ⚙️ Generate Rust
+    runs-on: ubuntu-latest
+    needs: parse
+    outputs:
+      raw_errors: ${{ steps.raw.outputs.errors }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      
+      - name: Build dol-codegen
+        run: cargo build --release --features cli --bin dol-codegen
+        
+      - name: Generate bootstrap
+        run: |
+          mkdir -p target/bootstrap/src
+          for module in types token ast lexer; do
+            cargo run --release --features cli --bin dol-codegen -- \
+              --target rust "dol/${module}.dol" 2>/dev/null \
+              > "target/bootstrap/src/${module}.rs"
+          done
+          
+      - name: Count raw errors
+        id: raw
+        run: |
+          cd target/bootstrap
+          cat > Cargo.toml << 'EOF'
+          [package]
+          name = "dol-bootstrap"
+          version = "0.3.1"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          EOF
+          cat > src/lib.rs << 'EOF'
+          pub mod types;
+          pub mod token;
+          pub mod ast;
+          pub mod lexer;
+          EOF
+          ERRORS=$(cargo check 2>&1 | grep "^error\[" | wc -l || echo "0")
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-rust
+          path: target/bootstrap/src/
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 4: BOOTSTRAP COMPILE
+  # ═══════════════════════════════════════════════════════════════════════════
+  bootstrap:
+    name: 🔧 Bootstrap
+    runs-on: ubuntu-latest
+    needs: generate
+    outputs:
+      fixed_errors: ${{ steps.fixed.outputs.errors }}
+      build_success: ${{ steps.build.outputs.success }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-rust
+          path: target/bootstrap/src/
+          
+      - name: Setup bootstrap
+        run: |
+          cat > target/bootstrap/Cargo.toml << 'EOF'
+          [package]
+          name = "dol-bootstrap"
+          version = "0.3.1"
+          edition = "2021"
+          [lib]
+          path = "src/lib.rs"
+          EOF
+          cat > target/bootstrap/src/lib.rs << 'EOF'
+          pub mod types;
+          pub mod token;
+          pub mod ast;
+          pub mod lexer;
+          EOF
+          
+      - name: Apply fixes
+        run: |
+          chmod +x scripts/bootstrap-fix.sh
+          ./scripts/bootstrap-fix.sh
+          
+      - name: Count fixed errors
+        id: fixed
+        run: |
+          cd target/bootstrap
+          ERRORS=$(cargo check 2>&1 | grep "^error\[" | wc -l || echo "0")
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+          
+      - name: Build
+        id: build
+        run: |
+          cd target/bootstrap
+          if cargo build --release 2>&1; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 5: TEST SUITE
+  # ═══════════════════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: bootstrap
+    outputs:
+      test_passed: ${{ steps.tests.outputs.passed }}
+      test_total: ${{ steps.tests.outputs.total }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      
+      - name: Run tests
+        id: tests
+        run: |
+          OUTPUT=$(cargo test --lib 2>&1)
+          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "total=$((PASSED + FAILED))" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # STAGE 6: METRICS + ALIGNMENT CHECK
+  # ═══════════════════════════════════════════════════════════════════════════
+  metrics:
+    name: 📊 Flywheel Metrics
+    runs-on: ubuntu-latest
+    needs: [parse, desugar, generate, bootstrap, test]
+    if: always()
+    steps:
+      - name: Generate Report
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # 🔄 DOL Flywheel Report
+          
+          ## Pipeline Status
+          | Stage | Status |
+          |-------|--------|
+          | Parse DOL | ${{ needs.parse.result == 'success' && '✅' || '❌' }} |
+          | Desugar HIR | ${{ needs.desugar.result == 'success' && '✅' || '⏳' }} |
+          | Generate Rust | ${{ needs.generate.result == 'success' && '✅' || '❌' }} |
+          | Bootstrap | ${{ needs.bootstrap.result == 'success' && '✅' || '❌' }} |
+          | Tests | ${{ needs.test.result == 'success' && '✅' || '❌' }} |
+          
+          ## Metrics
+          | Metric | Value | Target |
+          |--------|-------|--------|
+          | DOL Files | ${{ needs.parse.outputs.dol_files }} | 20+ |
+          | DOL Lines | ${{ needs.parse.outputs.dol_lines }} | - |
+          | HIR Coverage | ${{ needs.desugar.outputs.hir_coverage }}% | 100% |
+          | Raw Errors | ${{ needs.generate.outputs.raw_errors }} | 0 |
+          | Fixed Errors | ${{ needs.bootstrap.outputs.fixed_errors }} | 0 |
+          | Tests | ${{ needs.test.outputs.test_passed }}/${{ needs.test.outputs.test_total }} | 800+ |
+          
+          ## Year 1 Progress
+          | Milestone | Status |
+          |-----------|--------|
+          | Q1: Turing Extensions | ✅ Complete |
+          | Q2: Functional Composition | ✅ Complete |
+          | Q3: HIR + MLIR + MCP | 🔄 In Progress |
+          | Q4: Self-Hosting | ⏳ Pending |
+          
+          ## Alignment Check
+          - **Fix Script Needed:** ${{ needs.generate.outputs.raw_errors != '0' && 'YES' || 'NO' }}
+          - **HIR Ready:** ${{ needs.desugar.outputs.hir_coverage == '100' && 'YES' || 'NO' }}
+          - **Bootstrap OK:** ${{ needs.bootstrap.outputs.build_success == 'true' && 'YES' || 'NO' }}
+          
+          ---
+          *Vision: Post-AI Human Flourishing via VUDO + Mycelium*
+          EOF
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # RELEASE (on tags)
+  # ═══════════════════════════════════════════════════════════════════════════
+  release:
+    name: 📦 Release
+    runs-on: ubuntu-latest
+    needs: [bootstrap, test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            ## DOL ${{ github.ref_name }}
+            
+            - Raw errors: ${{ needs.generate.outputs.raw_errors }}
+            - Tests: ${{ needs.test.outputs.test_passed }} passing
+            
+            Part of VUDO ecosystem roadmap.

@@ -1,0 +1,6 @@
+fun double(x: Int64) -> Int64 { return x * 2 }
+fun increment(x: Int64) -> Int64 { return x + 1 }
+
+fun process(x: Int64) -> Int64 {
+    return x |> double |> increment
+}

@@ -1,0 +1,3 @@
+gene Broken {
+    has value Int64
+}
