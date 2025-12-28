@@ -3,6 +3,16 @@
 > **Release Date**: December 2025
 > **Status**: Released
 
+[![GitHub Release](https://img.shields.io/github/v/release/univrs/dol)](https://github.com/univrs/dol/releases/tag/v0.3.0)
+[![Crates.io](https://img.shields.io/crates/v/dol)](https://crates.io/crates/dol/0.3.0)
+[![docs.rs](https://docs.rs/dol/badge.svg)](https://docs.rs/dol)
+
+**Download:**
+- **GitHub**: [github.com/univrs/dol/releases/tag/v0.3.0](https://github.com/univrs/dol/releases/tag/v0.3.0)
+- **Crates.io**: [crates.io/crates/dol/0.3.0](https://crates.io/crates/dol/0.3.0)
+
+---
+
 ## What's New in v0.3.0
 
 DOL v0.3.0 introduces the **HIR (High-level Intermediate Representation)**, a major architectural improvement that simplifies the language while making it more consistent and easier to learn.
@@ -166,7 +176,7 @@ warning: `let` is deprecated, use `val` instead
 ### New Compilation Functions
 
 ```rust
-use metadol::codegen::{
+use dol::codegen::{
     compile_to_rust_via_hir,
     compile_with_diagnostics,
 };
@@ -181,8 +191,8 @@ let (rust_code, warnings) = compile_with_diagnostics(dol_source)?;
 ### Low-Level HIR Access
 
 ```rust
-use metadol::lower::lower_file;
-use metadol::codegen::HirRustCodegen;
+use dol::lower::lower_file;
+use dol::codegen::HirRustCodegen;
 
 // Parse and lower to HIR
 let (hir, ctx) = lower_file(source)?;
@@ -260,12 +270,16 @@ test "greeting works" {
 ### Installation
 
 ```bash
-# Update to v0.3.0
-cargo install metadol --version 0.3.0
+# Install from crates.io
+cargo install dol
 
-# Or update via cargo
-cargo update -p metadol
+# Or add as a dependency
+cargo add dol@0.3.0
 ```
+
+**Direct links:**
+- [GitHub Releases](https://github.com/univrs/dol/releases/tag/v0.3.0)
+- [Crates.io](https://crates.io/crates/dol/0.3.0)
 
 ### Quick Start
 
@@ -298,10 +312,16 @@ cargo update -p metadol
 
 ## Resources
 
+### Official Links
+- [GitHub Repository](https://github.com/univrs/dol) - Source code and issues
+- [Crates.io](https://crates.io/crates/dol) - Rust package registry
+- [API Documentation](https://docs.rs/dol) - Rust API docs
+
+### Documentation
 - [HIR Tutorials](./HIR_Tutorials.md) - Detailed HIR documentation
+- [DOL Self-Hosting](./DOL_Self_Hosting.md) - DOL-in-DOL compiler
+- [Examples Gallery](./DOL_Examples_Gallery.md) - Comprehensive examples
 - [Language Decisions](../dol/hir/DOL-v0.3.0-LANGUAGE-DECISIONS.md) - Design rationale
-- [Examples](../examples/) - Code examples
-- [API Documentation](https://docs.rs/metadol) - Rust API docs
 
 ---
 

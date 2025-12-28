@@ -2,6 +2,16 @@
 
 > **High-level Intermediate Representation for Ontology-First Development**
 
+[![GitHub Release](https://img.shields.io/github/v/release/univrs/dol)](https://github.com/univrs/dol/releases/tag/v0.3.0)
+[![Crates.io](https://img.shields.io/crates/v/dol)](https://crates.io/crates/dol/0.3.0)
+[![docs.rs](https://docs.rs/dol/badge.svg)](https://docs.rs/dol)
+
+**Get DOL v0.3.0:**
+- **GitHub**: [github.com/univrs/dol/releases/tag/v0.3.0](https://github.com/univrs/dol/releases/tag/v0.3.0)
+- **Crates.io**: [crates.io/crates/dol/0.3.0](https://crates.io/crates/dol/0.3.0)
+
+---
+
 ## Table of Contents
 
 1. [Introduction to HIR](#introduction-to-hir)
@@ -74,7 +84,7 @@ val x = 42          // v0.3.0 syntax (preferred)
 Lowering transforms the AST into canonical HIR form:
 
 ```rust
-use metadol::lower::lower_file;
+use dol::lower::lower_file;
 
 let source = r#"
 gene point.2d {
@@ -100,7 +110,7 @@ let (hir, ctx) = lower_file(source)?;
 The HIR codegen produces clean Rust code:
 
 ```rust
-use metadol::codegen::compile_to_rust_via_hir;
+use dol::codegen::compile_to_rust_via_hir;
 
 let rust_code = compile_to_rust_via_hir(source)?;
 // Produces:
@@ -348,7 +358,7 @@ pub type Statement {
 ### Using the HIR Codegen
 
 ```rust
-use metadol::codegen::{compile_to_rust_via_hir, compile_with_diagnostics};
+use dol::codegen::{compile_to_rust_via_hir, compile_with_diagnostics};
 
 // Simple compilation
 let rust_code = compile_to_rust_via_hir(dol_source)?;
