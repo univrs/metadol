@@ -19,6 +19,7 @@
 //! - [`HirType`] - 8 type forms
 //! - [`HirPat`] - 6 pattern forms
 
+pub mod desugar;
 pub mod print;
 pub mod span;
 pub mod symbol;
