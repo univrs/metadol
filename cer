@@ -1,0 +1,7 @@
+echo "Number of errors: "
+echo " " 
+cargo check 2>&1 | grep "^error\[" | wc -l 
+
+echo "Head ${1} lines" 
+echo " " 
+cargo check 2>&1 | grep "^error\[" | head -${1}
