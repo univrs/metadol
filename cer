@@ -1,5 +1,4 @@
-echo "Number of errors: "
-echo " " 
+echo "Number of errors:"
 cargo check 2>&1 | grep "^error\[" | wc -l 
 
 echo "Head ${1} lines" 
@@ -16,3 +15,6 @@ wc -l docs/hir/HIR-SPECIFICATION.md
 echo "wc -l doc/hir/validate.rs"
 echo " " 
 wc -l src/hir/validate.rs
+
+echo "head -80 docs/hir/HIR-SPECIFICATION.md"
+head -80 docs/hir/HIR-SPECIFICATION.md
