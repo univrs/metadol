@@ -1,6 +1,0 @@
-echo "=== PHASE 0 COMPLETE ==="
-echo "Branch: $(git branch --show-current)"
-echo "Tests: $(cargo test --lib --quiet 2>&1 | tail -1)"
-echo ""
-echo "Next: Phase 1 - HIR Design Document"
-echo "Deliverable: docs/hir/HIR-SPECIFICATION.md"
