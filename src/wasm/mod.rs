@@ -8,7 +8,7 @@
 //!
 //! The WASM backend consists of two main components:
 //!
-//! - **Compiler**: Transforms DOL AST → MLIR → LLVM IR → WASM bytecode
+//! - **Compiler**: Transforms DOL AST → WASM bytecode (direct emission)
 //! - **Runtime**: Executes WASM modules using the Wasmtime runtime
 //!
 //! ## Usage
@@ -41,19 +41,34 @@
 //!
 //! ## Compilation Pipeline
 //!
+//! The current implementation uses direct WASM emission via wasm-encoder:
+//!
 //! 1. **DOL AST**: Parse DOL source into abstract syntax tree
-//! 2. **MLIR**: Lower DOL AST to MLIR dialect (func, arith, cf)
-//! 3. **LLVM IR**: Convert MLIR to LLVM intermediate representation
-//! 4. **WASM**: Compile LLVM IR to WebAssembly bytecode
+//! 2. **WASM Bytecode**: Directly emit WASM instructions and sections
 //!
-//! ## Current Status
+//! This approach is simpler and more self-contained than the full MLIR pipeline.
+//! For advanced optimization and LLVM integration, enable the `wasm-mlir` feature
+//! (requires LLVM 18 installed).
 //!
-//! This is a skeleton implementation for Q3 Phase 2. The full MLIR → LLVM → WASM
-//! lowering pipeline is complex and will be implemented in future phases.
+//! ## Supported Features
+//!
+//! - Function declarations with typed parameters and return values
+//! - Integer (i64) and float (f64) literals
+//! - Binary operations (add, sub, mul, div, mod, comparisons, logical)
+//! - Function calls and return statements
+//! - Variable references (function parameters)
+//!
+//! ## Limitations
+//!
+//! - No complex types (structs, enums, tuples)
+//! - No local variables (let bindings)
+//! - No control flow (if, loops, match)
+//! - No closures or higher-order functions
 //!
 //! ## Feature Flags
 //!
-//! - `wasm`: Enables WASM compilation and runtime (requires `mlir`)
+//! - `wasm`: Enables WASM compilation and runtime (direct emission)
+//! - `wasm-mlir`: Enables WASM compilation via MLIR pipeline (requires LLVM 18)
 //!
 //! ## See Also
 //!

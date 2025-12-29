@@ -42,7 +42,6 @@ use wasmtime::{Engine, Instance, Linker, Module, Store, Val};
 /// let runtime = WasmRuntime::new()?;
 /// ```
 #[cfg(feature = "wasm")]
-#[derive(Debug)]
 pub struct WasmRuntime {
     engine: Engine,
 }
@@ -95,7 +94,7 @@ impl WasmRuntime {
     /// ```
     pub fn load(&self, wasm_bytes: &[u8]) -> Result<WasmModule, WasmError> {
         let module = Module::from_binary(&self.engine, wasm_bytes)?;
-        let mut linker = Linker::new(&self.engine);
+        let linker = Linker::new(&self.engine);
         let mut store = Store::new(&self.engine, ());
 
         // Instantiate the module with an empty linker

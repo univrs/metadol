@@ -144,8 +144,7 @@ impl<'ctx> TypeLowering<'ctx> {
                 params,
                 return_type,
             } => {
-                let param_types: Result<Vec<_>, _> =
-                    params.iter().map(|p| self.lower(p)).collect();
+                let param_types: Result<Vec<_>, _> = params.iter().map(|p| self.lower(p)).collect();
                 let param_types = param_types?;
 
                 let ret_type = self.lower(return_type)?;

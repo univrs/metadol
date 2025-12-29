@@ -49,14 +49,35 @@
 //! ## Modules
 //!
 //! - [`ops`]: MLIR operation builders for arithmetic, control flow, and functions
+//! - [`types`]: Type lowering from DOL types to MLIR types
+//! - [`context`]: MLIR context management and module creation
+//! - [`lowering`]: HIR to MLIR lowering pass
 
 // Conditionally compile MLIR modules only when feature is enabled
 #[cfg(feature = "mlir")]
 pub mod ops;
 
+#[cfg(feature = "mlir")]
+pub mod types;
+
+#[cfg(feature = "mlir")]
+pub mod context;
+
+#[cfg(feature = "mlir")]
+pub mod lowering;
+
 // Re-export public types when MLIR feature is enabled
 #[cfg(feature = "mlir")]
 pub use ops::OpBuilder;
+
+#[cfg(feature = "mlir")]
+pub use types::TypeLowering;
+
+#[cfg(feature = "mlir")]
+pub use context::MlirContext;
+
+#[cfg(feature = "mlir")]
+pub use lowering::HirToMlirLowering;
 
 use crate::ast::Span;
 use std::fmt;

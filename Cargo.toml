@@ -62,7 +62,8 @@ default = []
 cli = ["dep:clap", "dep:anyhow", "dep:colored", "dep:regex", "serde"]
 serde = ["dep:serde", "dep:serde_json"]
 mlir = ["melior"]
-wasm = ["mlir", "wasmtime"]
+wasm = ["wasmtime", "wasm-encoder"]
+wasm-mlir = ["wasm", "mlir"]
 
 [dependencies]
 # Core dependencies
@@ -87,6 +88,7 @@ melior = { version = "0.18", optional = true }
 
 # Optional: WASM compilation and runtime
 wasmtime = { version = "21", optional = true }
+wasm-encoder = { version = "0.41", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4"

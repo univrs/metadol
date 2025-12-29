@@ -92,6 +92,10 @@ pub mod mlir;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+// Spirit compiler (requires wasm feature)
+#[cfg(feature = "wasm")]
+pub mod compiler;
+
 // Test file parser for .dol.test files
 #[cfg(feature = "cli")]
 pub mod test_parser;
@@ -142,6 +146,13 @@ pub use mlir::MlirError;
 // WASM backend re-exports (requires wasm feature)
 #[cfg(feature = "wasm")]
 pub use wasm::{WasmCompiler, WasmError, WasmModule, WasmRuntime};
+
+// Spirit compiler re-exports (requires wasm feature)
+#[cfg(feature = "wasm")]
+pub use compiler::spirit::{
+    compile_file, compile_source, compile_spirit_project, CompiledSpirit, CompilerError,
+    CompilerWarning, SourceMap, SourceMapEntry,
+};
 
 /// Parse a DOL source string into an AST.
 ///
