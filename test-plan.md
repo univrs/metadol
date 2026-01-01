@@ -7,8 +7,11 @@ This document outlines the test strategy and test cases for the DOL to WASM comp
 The DOL WASM backend compiles DOL (Design Ontology Language) source code to WebAssembly (WASM) bytecode. This test plan covers:
 
 1. **Current working features** (already passing)
-2. **Features under development** (local variables, control flow)
-3. **Future features** (genes, traits, advanced patterns)
+2. **Features under development** (advanced genes, traits)
+3. **Future features** (complex patterns, optimizations)
+
+**Last Updated:** 2026-01-01
+**Test Status:** 28 WASM execution tests passing
 
 ## Test Infrastructure
 
@@ -87,7 +90,7 @@ test-cases/
 
 ## Current Test Coverage
 
-### Working Features (Level 1-2)
+### Working Features (Level 1-4)
 
 | Feature | Test File | Status |
 |---------|-----------|--------|
@@ -96,123 +99,123 @@ test-cases/
 | i64 parameters | level2-basic/arithmetic.dol | PASS |
 | i64 return type | level2-basic/*.dol | PASS |
 | Binary operators (+, -, *, /) | level2-basic/arithmetic.dol | PASS |
-| Comparison operators (>, <, ==) | - | PASS |
+| Comparison operators (>, <, ==, !=) | - | PASS |
 | Return statements | level2-basic/*.dol | PASS |
 | Integer literals | - | PASS |
 | Float literals | - | PASS |
+| Local variables (let) | level2-basic/locals_test.dol | PASS |
+| Variable reassignment | level4-control/loop_test.dol | PASS |
+| If statements | level4-control/if_else_test.dol | PASS |
+| If-else | level4-control/if_else_test.dol | PASS |
+| While loops | level4-control/loop_test.dol | PASS |
+| For loops | level4-control/loop_test.dol | PASS |
+| Break/continue | level4-control/loop_test.dol | PASS |
+| Nested control flow | level4-control/loop_test.dol | PASS |
+| Gene methods (simple) | level3-types/gene_methods_test.dol | PASS |
+| Gene field access | level3-types/gene_methods_test.dol | PASS |
+| Implicit self parameter | level3-types/gene_methods_test.dol | PASS |
+| Pattern matching (basic) | - | PASS |
 
-### Under Development (Level 2-4)
+### Under Development (Level 3-5)
 
 | Feature | Test File | Status | Priority |
 |---------|-----------|--------|----------|
-| Local variables (let) | level2-basic/locals_test.dol | TODO | HIGH |
-| Type inference for locals | level2-basic/locals_test.dol | TODO | HIGH |
-| If statements | level4-control/if_else_test.dol | TODO | HIGH |
-| If-else | level4-control/if_else_test.dol | TODO | HIGH |
-| While loops | level4-control/loop_test.dol | TODO | MEDIUM |
-| For loops | level4-control/loop_test.dol | TODO | MEDIUM |
-| Break/continue | level4-control/loop_test.dol | TODO | MEDIUM |
-| Match expressions | level4-control/match_expr.dol | TODO | LOW |
-
-### Future Features (Level 3-5)
-
-| Feature | Test File | Status | Priority |
-|---------|-----------|--------|----------|
-| Gene fields | level3-types/gene_methods_test.dol | TODO | MEDIUM |
-| Gene methods | level3-types/gene_methods_test.dol | TODO | MEDIUM |
-| Gene inheritance | level3-types/gene_methods_test.dol | TODO | LOW |
+| Gene inheritance | level3-types/gene_methods_test.dol | TODO | MEDIUM |
+| Complex gene layouts | level3-types/gene_methods_test.dol | TODO | MEDIUM |
+| Match expressions (complex) | level4-control/match_expr.dol | TODO | LOW |
 | Trait definitions | level5-advanced/trait_impl_test.dol | TODO | LOW |
 | Trait implementations | level5-advanced/trait_impl_test.dol | TODO | LOW |
 | System declarations | level5-advanced/system_impl.dol | TODO | LOW |
 
 ## Test Cases by Feature
 
-### 1. Local Variables (HIGH PRIORITY)
+### 1. Local Variables ✅ COMPLETE
 
 **File:** `test-cases/level2-basic/locals_test.dol`
 
-| Test | Description | Expected Result |
-|------|-------------|-----------------|
-| test_simple_let | let binding with type annotation | Compiles, executes correctly |
-| test_let_inference | let binding with type inference | Compiles, executes correctly |
-| test_multiple_locals | Multiple let bindings | Compiles, executes correctly |
-| test_chained_locals | Locals used in sequence | Compiles, executes correctly |
-| test_shadowing | Variable shadowing | Compiles, handles shadowing |
-| test_float_local | Float type local | Compiles with f64 |
-| test_bool_local | Boolean type local | Compiles with i32 |
+| Test | Description | Status |
+|------|-------------|--------|
+| test_simple_let | let binding with type annotation | PASS |
+| test_let_inference | let binding with type inference | PASS |
+| test_multiple_locals | Multiple let bindings | PASS |
+| test_chained_locals | Locals used in sequence | PASS |
+| test_shadowing | Variable shadowing | PASS |
+| test_float_local | Float type local | PASS |
+| test_bool_local | Boolean type local | PASS |
 
-**WASM Implementation Requirements:**
+**WASM Implementation (Completed):**
 - Pre-scan function body to collect local declarations
 - Allocate locals after function parameters
-- Map local names to indices
+- Map local names to indices via `LocalsTable`
 - Emit `local.set` for initialization
 - Emit `local.get` for access
 
-### 2. Control Flow - If/Else (HIGH PRIORITY)
+### 2. Control Flow - If/Else ✅ COMPLETE
 
 **File:** `test-cases/level4-control/if_else_test.dol`
 
-| Test | Description | Expected Result |
-|------|-------------|-----------------|
-| test_simple_if | Single if, fall-through | Block structure correct |
-| test_if_else | If with else branch | Both branches work |
-| test_if_else_chain | Multiple else-if | All conditions checked |
-| test_max | Max of two values | Returns larger value |
-| test_min | Min of two values | Returns smaller value |
-| test_abs | Absolute value | Handles negative correctly |
-| test_clamp | Value clamping | Bounds checking works |
-| test_nested_if | Nested conditionals | Proper nesting |
-| test_complex_condition | && in condition | Short-circuit eval |
-| test_or_condition | \|\| in condition | Short-circuit eval |
+| Test | Description | Status |
+|------|-------------|--------|
+| test_simple_if | Single if, fall-through | PASS |
+| test_if_else | If with else branch | PASS |
+| test_if_else_chain | Multiple else-if | PASS |
+| test_max | Max of two values | PASS |
+| test_min | Min of two values | PASS |
+| test_abs | Absolute value | PASS |
+| test_clamp | Value clamping | PASS |
+| test_nested_if | Nested conditionals | PASS |
+| test_complex_condition | && in condition | PASS |
+| test_or_condition | \|\| in condition | PASS |
 
-**WASM Implementation Requirements:**
+**WASM Implementation (Completed):**
 - Use WASM `if` instruction for conditionals
 - Use WASM `block`/`br` for structured control flow
 - Handle else branches with `else` instruction
 - Emit comparison results as i32 (0/1)
 
-### 3. Control Flow - Loops (MEDIUM PRIORITY)
+### 3. Control Flow - Loops ✅ COMPLETE
 
 **File:** `test-cases/level4-control/loop_test.dol`
 
-| Test | Description | Expected Result |
-|------|-------------|-----------------|
-| test_while_countdown | While with decrement | Terminates at 0 |
-| test_while_sum | While with accumulator | Correct sum |
-| test_for_sum | For loop summation | Correct sum |
-| test_for_factorial | For loop product | Correct factorial |
-| test_loop_break | Infinite loop with break | Exits at target |
-| test_loop_continue | Loop with continue | Skips correctly |
-| test_nested_while | Nested while loops | Correct iterations |
-| test_nested_for | Nested for loops | Correct iterations |
-| test_gcd | GCD algorithm | Correct result |
+| Test | Description | Status |
+|------|-------------|--------|
+| test_while_countdown | While with decrement | PASS |
+| test_while_sum | While with accumulator | PASS |
+| test_for_sum | For loop summation | PASS |
+| test_for_factorial | For loop product | PASS |
+| test_loop_break | Infinite loop with break | PASS |
+| test_loop_continue | Loop with continue | PASS |
+| test_nested_while | Nested while loops | PASS |
+| test_nested_for | Nested for loops | PASS |
+| test_gcd | GCD algorithm | PASS |
 
-**WASM Implementation Requirements:**
+**WASM Implementation (Completed):**
 - Use WASM `loop` instruction for while loops
 - Use WASM `block` + `br_if` for loop conditions
 - Implement `br` for break (branch out of block)
 - Implement `br` + label for continue (branch to loop head)
-- For loops need range iteration (desugar to while)
+- For loops desugared to while loops
+- **Block depth tracking via `LoopContext`**: Tracks relative break/continue depths when nested inside if/match blocks
 
-### 4. Genes (MEDIUM PRIORITY)
+### 4. Genes (Partial) ⚠️ IN PROGRESS
 
 **File:** `test-cases/level3-types/gene_methods_test.dol`
 
-| Test | Description | Expected Result |
-|------|-------------|-----------------|
-| Point gene | Gene with x, y fields | Compiles to memory layout |
-| Counter gene | Gene with method | Method callable |
-| Calculator gene | Multiple methods | All methods work |
-| Rectangle gene | Area/perimeter | Computed from fields |
-| Vector2D gene | Float fields | f64 operations work |
-| Dog extends Animal | Inheritance | Fields inherited |
+| Test | Description | Status |
+|------|-------------|--------|
+| Point gene | Gene with x, y fields | PASS |
+| Counter gene | Gene with method | PASS |
+| Calculator gene | Multiple methods | PASS |
+| Rectangle gene | Area/perimeter | PASS |
+| Vector2D gene | Float fields | PASS |
+| Dog extends Animal | Inheritance | TODO |
 
-**WASM Implementation Requirements:**
-- Memory layout for gene fields
-- Method compilation as functions
-- Field access via memory instructions
-- Self/this parameter handling
-- Inheritance via field embedding
+**WASM Implementation (Partial):**
+- [x] Memory layout for gene fields via `GeneLayout`
+- [x] Method compilation as functions with `gene_` prefix
+- [x] Field access via memory instructions (i64.load/i64.store)
+- [x] Implicit self parameter via `GeneContext`
+- [ ] Inheritance via field embedding (not yet implemented)
 
 ### 5. Traits (LOW PRIORITY)
 
@@ -266,41 +269,53 @@ test-cases/
 
 ## Known Issues
 
-### Compilation Errors (as of current state)
+### Resolved Issues
 
-The WASM compiler has type mismatches in `emit_statement`:
-- `emit_expression` expects `&FunctionDecl` but receives `&LocalsTable`
-- Need to fix signature or pass both
+The following issues have been fixed:
 
-### Missing Features
+1. ~~`emit_expression` signature mismatch~~ - Fixed by passing both `FunctionDecl` and `LocalsTable`
+2. ~~Local variables not integrated~~ - `LocalsTable` now fully functional
+3. ~~Control flow stubs~~ - If/else, while, for, break/continue all implemented
+4. ~~Break inside if blocks~~ - Fixed with `LoopContext` block depth tracking
+5. ~~Gene methods not extracted~~ - Gene method extraction now works with implicit self
 
-1. **Local Variables**: `LocalsTable` exists but not fully integrated
-2. **Control Flow**: Stubs exist, return "not implemented" errors
-3. **Genes**: Extract functions from genes not implemented
-4. **Traits**: Not parsed for WASM compilation
+### Remaining Limitations
+
+1. **Gene Inheritance**: Field inheritance not yet implemented
+2. **Complex Gene Layouts**: Nested genes not fully supported
+3. **Traits**: Trait method dispatch not implemented
+4. **Systems**: System declarations parsed but not compiled to WASM
 
 ## Success Criteria
 
-### Phase 1: Local Variables
-- [ ] All tests in `locals_test.dol` compile
-- [ ] WASM validates with wasm-tools
-- [ ] Execution produces correct results
+### Phase 1: Local Variables ✅ COMPLETE
+- [x] All tests in `locals_test.dol` compile
+- [x] WASM validates with wasm-tools
+- [x] Execution produces correct results
 
-### Phase 2: Control Flow
-- [ ] All tests in `if_else_test.dol` compile
-- [ ] All tests in `loop_test.dol` compile
-- [ ] Break/continue work correctly
-- [ ] Nested control flow works
+### Phase 2: Control Flow ✅ COMPLETE
+- [x] All tests in `if_else_test.dol` compile
+- [x] All tests in `loop_test.dol` compile
+- [x] Break/continue work correctly
+- [x] Nested control flow works (with block depth tracking)
 
-### Phase 3: Genes
-- [ ] Simple gene with fields compiles
-- [ ] Gene methods are callable
-- [ ] Field access works
+### Phase 3: Genes (Partial)
+- [x] Simple gene with fields compiles
+- [x] Gene methods are callable
+- [x] Field access works
+- [x] Implicit self parameter works
+- [ ] Gene inheritance
+- [ ] Complex nested genes
 
-### Phase 4: Integration
-- [ ] All `working/` tests pass
+### Phase 4: Integration (In Progress)
+- [x] All `working/` tests pass
 - [ ] CI runs WASM tests
 - [ ] Test coverage > 80% for wasm module
+
+### Phase 5: Traits & Systems (Future)
+- [ ] Trait definitions compile
+- [ ] Trait implementations work
+- [ ] System declarations compile
 
 ## How to Add New Tests
 
