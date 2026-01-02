@@ -108,6 +108,10 @@ debug = true
 [profile.test]
 opt-level = 1
 
+[[example]]
+name = "compile_counter"
+required-features = ["wasm"]
+
 # Benchmarks will be added in a future phase
 # [[bench]]
 # name = "parser_bench"
