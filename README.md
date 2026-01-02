@@ -5,7 +5,10 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org)
 [![Tests](https://img.shields.io/badge/tests-631%20passing-brightgreen)](https://github.com/univrs/metadol/actions)
 
-**A declarative DSL for ontology-first development with meta-programming and multi-target compilation**
+**A declarative DSL for ontology-first development with meta-programming and multi-target compilation** 
+
+> [!CAUTION]
+> This project is a research demonstrator. It is in early development and may change significantly. Using permissive Univrs tools in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk. See [Disclaimer](#disclaimer).
 
 ---
 
@@ -684,6 +687,16 @@ at your option.
 
 DOL is part of the [Univrs](https://github.com/univrs) ecosystem, building the foundation for VUDO OS — 
 a distributed, AI-native operating system where systems describe their ontological nature before their functionality.
+
+## Disclaimer
+
+> [!IMPORTANT] > **This is an experimental system. _We break things frequently_.**
+
+- Not accepting contributions yet (but we plan to!)
+- No stability guarantees
+- Pin commits if you need consistency
+- This is a learning resource, not production software
+- **No support provided** - See [SUPPORT.md](SUPPORT.md)
 
 ---
 

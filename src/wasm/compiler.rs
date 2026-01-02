@@ -288,6 +288,24 @@ struct GeneContext {
     field_names: Vec<String>,
 }
 
+/// A WASM import extracted from a `sex fun` without body.
+///
+/// These are host functions that will be provided by the Loa runtime.
+#[cfg(feature = "wasm")]
+#[derive(Debug, Clone)]
+struct WasmImport {
+    /// Module name for the import (always "loa" for host functions)
+    module: String,
+    /// Function name as declared in DOL
+    name: String,
+    /// Parameter types
+    params: Vec<wasm_encoder::ValType>,
+    /// Return type (if any)
+    result: Option<wasm_encoder::ValType>,
+    /// Type index in the type section
+    type_idx: u32,
+}
+
 #[cfg(feature = "wasm")]
 impl WasmCompiler {
     /// Create a new WASM compiler with default settings.
@@ -625,25 +643,30 @@ impl WasmCompiler {
     /// if compilation fails.
     pub fn compile_file(&mut self, file: &crate::ast::DolFile) -> Result<Vec<u8>, WasmError> {
         use wasm_encoder::{
-            CodeSection, ExportKind, ExportSection, Function, FunctionSection, Module, TypeSection,
-            ValType,
+            CodeSection, EntityType, ExportKind, ExportSection, Function, FunctionSection,
+            ImportSection, Module, TypeSection, ValType,
         };
 
         // Register gene layouts in dependency order (parents before children)
         self.register_gene_layouts_ordered(&file.declarations)?;
 
-        // Extract all functions from all declarations
+        // Extract imports (sex fun without body)
+        let mut imports = self.extract_imports(&file.declarations)?;
+
+        // Extract all local functions (with body) from all declarations
         let mut functions: Vec<ExtractedFunction> = Vec::new();
         for decl in &file.declarations {
             let extracted = self.extract_functions(decl)?;
-            functions.extend(extracted);
+            // Filter out import functions (sex fun without body)
+            for f in extracted {
+                if !Self::is_import(f.func) {
+                    functions.push(f);
+                }
+            }
         }
 
-        if functions.is_empty() {
-            return Err(WasmError::new(
-                "No functions found in file - only function declarations are currently supported for WASM compilation",
-            ));
-        }
+        // Allow modules with only imports (no local functions)
+        let has_local_functions = !functions.is_empty();
 
         // Check if we need memory allocation (when gene layouts are registered)
         let needs_memory = !self.gene_layouts.is_empty();
@@ -651,19 +674,32 @@ impl WasmCompiler {
         // Build WASM module
         let mut wasm_module = Module::new();
 
-        // Type section: function signatures
+        // ============= TYPE SECTION =============
+        // Order: alloc type (if needed), import types, local function types
         let mut types = TypeSection::new();
-        let mut type_indices = Vec::new();
+        let mut next_type_idx = 0u32;
 
         // If we need memory, add the alloc function type first
         if needs_memory {
             let (alloc_params, alloc_results) = BumpAllocator::alloc_type_signature();
             types.function(alloc_params, alloc_results);
-            type_indices.push(0);
+            next_type_idx += 1;
         }
 
-        // Add user function types (offset by 1 if we have alloc)
-        let type_offset = if needs_memory { 1u32 } else { 0u32 };
+        // Add import function types
+        for import in &mut imports {
+            let results = if let Some(res) = import.result {
+                vec![res]
+            } else {
+                vec![]
+            };
+            types.function(import.params.clone(), results);
+            import.type_idx = next_type_idx;
+            next_type_idx += 1;
+        }
+
+        // Add local function types
+        let local_func_type_offset = next_type_idx;
         for extracted in &functions {
             let mut params: Vec<ValType> = Vec::new();
 
@@ -684,36 +720,61 @@ impl WasmCompiler {
             };
 
             types.function(params, results);
-            let user_func_idx = type_indices.len() - if needs_memory { 1 } else { 0 };
-            type_indices.push(type_offset + user_func_idx as u32);
+            next_type_idx += 1;
         }
 
         wasm_module.section(&types);
 
-        // Function section: function indices
-        let mut funcs = FunctionSection::new();
-        if needs_memory {
-            funcs.function(0);
+        // ============= IMPORT SECTION =============
+        // Import functions come from the "loa" module (host Loa functions)
+        if !imports.is_empty() {
+            let mut import_section = ImportSection::new();
+            for import in &imports {
+                import_section.import(
+                    &import.module,
+                    &import.name,
+                    EntityType::Function(import.type_idx),
+                );
+            }
+            wasm_module.section(&import_section);
         }
+
+        // ============= FUNCTION SECTION =============
+        // Function indices: imports get 0..n-1, then alloc (if needed), then local functions
+        // Note: imports already occupy indices 0..import_count-1
+        let import_count = imports.len() as u32;
+        let alloc_func_idx = if needs_memory {
+            Some(import_count) // alloc comes right after imports
+        } else {
+            None
+        };
+        let local_func_idx_offset = import_count + if needs_memory { 1 } else { 0 };
+
+        let mut funcs = FunctionSection::new();
+        // Add alloc function type reference
+        if needs_memory {
+            funcs.function(0); // alloc uses type 0
+        }
+        // Add local function type references
         for (i, _func) in functions.iter().enumerate() {
-            funcs.function(type_offset + i as u32);
+            funcs.function(local_func_type_offset + i as u32);
         }
         wasm_module.section(&funcs);
 
-        // Memory section (if needed)
+        // ============= MEMORY SECTION =============
         if needs_memory {
             BumpAllocator::emit_memory_section(&mut wasm_module, 1);
             BumpAllocator::emit_globals(&mut wasm_module, 1024);
         }
 
-        // Export section: export all user functions
+        // ============= EXPORT SECTION =============
         let mut exports = ExportSection::new();
-        let func_idx_offset = if needs_memory { 1u32 } else { 0u32 };
+        // Export local functions (not imports)
         for (idx, extracted) in functions.iter().enumerate() {
             exports.export(
                 &extracted.exported_name,
                 ExportKind::Func,
-                func_idx_offset + idx as u32,
+                local_func_idx_offset + idx as u32,
             );
         }
         if needs_memory {
@@ -721,7 +782,7 @@ impl WasmCompiler {
         }
         wasm_module.section(&exports);
 
-        // Code section: function bodies
+        // ============= CODE SECTION =============
         let mut code = CodeSection::new();
 
         // Add alloc function if memory is needed
@@ -730,14 +791,24 @@ impl WasmCompiler {
             code.function(&alloc_func);
         }
 
-        // Register all function names for call resolution
-        let func_name_map: std::collections::HashMap<String, u32> = functions
-            .iter()
-            .enumerate()
-            .map(|(i, f)| (f.exported_name.clone(), func_idx_offset + i as u32))
-            .collect();
+        // Build function name map for call resolution
+        // Include both imports and local functions
+        let mut func_name_map: std::collections::HashMap<String, u32> =
+            std::collections::HashMap::new();
 
-        // Add user function code
+        // Register imports
+        for (i, import) in imports.iter().enumerate() {
+            func_name_map.insert(import.name.clone(), i as u32);
+        }
+
+        // Register local functions
+        for (i, f) in functions.iter().enumerate() {
+            let wasm_idx = local_func_idx_offset + i as u32;
+            func_name_map.insert(f.exported_name.clone(), wasm_idx);
+            func_name_map.insert(f.func.name.clone(), wasm_idx);
+        }
+
+        // Add local function code
         for (idx, extracted) in functions.iter().enumerate() {
             let mut locals_table = LocalsTable::new_with_gene_context(
                 &extracted.func.params,
@@ -746,9 +817,7 @@ impl WasmCompiler {
 
             // Register all function indices for call resolution
             for (name, wasm_idx) in &func_name_map {
-                locals_table
-                    .dol_types
-                    .insert(format!("__func_{}", name), format!("wasm_idx:{}", wasm_idx));
+                locals_table.register_function(name, *wasm_idx);
             }
 
             // Collect locals from function body
@@ -762,10 +831,15 @@ impl WasmCompiler {
 
             let mut function = Function::new(locals);
             let _ = idx;
+            let _ = alloc_func_idx;
             self.emit_function_body(&mut function, extracted.func, &locals_table)?;
             code.function(&function);
         }
-        wasm_module.section(&code);
+
+        // Only emit code section if we have local functions
+        if has_local_functions || needs_memory {
+            wasm_module.section(&code);
+        }
 
         Ok(wasm_module.finish())
     }
@@ -918,6 +992,51 @@ impl WasmCompiler {
                 Ok(vec![])
             }
         }
+    }
+
+    /// Extract imports from DOL declarations.
+    ///
+    /// A sex fun without body is treated as a WASM import.
+    /// All imports use the "loa" module name (the Loa host function registry).
+    fn extract_imports(&self, declarations: &[Declaration]) -> Result<Vec<WasmImport>, WasmError> {
+        use crate::ast::{Declaration, Purity};
+
+        let mut imports = Vec::new();
+
+        for decl in declarations {
+            if let Declaration::Function(func) = decl {
+                // A sex fun without body is an import
+                if func.purity == Purity::Sex && func.body.is_empty() {
+                    let params: Vec<wasm_encoder::ValType> = func
+                        .params
+                        .iter()
+                        .map(|p| self.dol_type_to_wasm(&p.type_ann))
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    let result = if let Some(ref ret_type) = func.return_type {
+                        Some(self.dol_type_to_wasm(ret_type)?)
+                    } else {
+                        None
+                    };
+
+                    imports.push(WasmImport {
+                        module: "loa".to_string(),
+                        name: func.name.clone(),
+                        params,
+                        result,
+                        type_idx: 0, // Will be set later
+                    });
+                }
+            }
+        }
+
+        Ok(imports)
+    }
+
+    /// Check if a function is an import (sex fun without body).
+    fn is_import(func: &crate::ast::FunctionDecl) -> bool {
+        use crate::ast::Purity;
+        func.purity == Purity::Sex && func.body.is_empty()
     }
 
     /// Convert a DOL type expression to a WASM value type.

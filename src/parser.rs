@@ -3448,12 +3448,20 @@ impl<'a> Parser<'a> {
             None
         };
 
-        self.expect(TokenKind::LeftBrace)?;
-        let mut body = Vec::new();
-        while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof {
-            body.push(self.parse_stmt()?);
-        }
-        self.expect(TokenKind::RightBrace)?;
+        // Body is optional for sex fun (import declaration if no body)
+        let body = if self.current.kind == TokenKind::LeftBrace {
+            self.advance(); // consume '{'
+            let mut stmts = Vec::new();
+            while self.current.kind != TokenKind::RightBrace && self.current.kind != TokenKind::Eof
+            {
+                stmts.push(self.parse_stmt()?);
+            }
+            self.expect(TokenKind::RightBrace)?;
+            stmts
+        } else {
+            // No body - this is an import declaration (only valid for sex fun)
+            Vec::new()
+        };
 
         let span = start_span.merge(&self.previous.span);
 
