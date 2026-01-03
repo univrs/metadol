@@ -1,0 +1,18 @@
+// Echo Spirit - Messaging example
+// send/recv effects inferred automatically
+
+gene EchoSpirit {
+    has messages_handled: Int
+
+    fun tick() {
+        if pending() > 0 {
+            let msg = recv()
+            let sender_id = sender()
+
+            println("Echo received: " + msg)
+            send(sender_id, msg)
+
+            self.messages_handled = self.messages_handled + 1
+        }
+    }
+}
