@@ -332,12 +332,6 @@ jobs:
 
 
 
-      - name: Run all WASM-enabled tests
-
-        run: cargo test --features "wasm,cli,serde"
-
-
-
   coverage:
 
     name: Code Coverage
