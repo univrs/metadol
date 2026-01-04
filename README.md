@@ -14,7 +14,7 @@
 
 ## Overview
 
-DOL (Design Ontology Language) is a production-ready DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, DOL lets you declare your domain's fundamental structure, behaviors, and constraints explicitly. The toolchain then validates, type-checks, and compiles to multiple targets including Rust, TypeScript, WebAssembly, and JSON Schema.
+DOL (Design Ontology Language) is a DSL toolchain that enables ontology-first development. Instead of writing code and hoping it aligns with your domain model, DOL lets you declare your domain's fundamental structure, behaviors, and constraints explicitly. The toolchain then validates, type-checks, and compiles to multiple targets including Rust, TypeScript, WebAssembly, and JSON Schema.
 
 ### What Makes DOL 2.0 Different?
 

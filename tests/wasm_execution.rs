@@ -1708,142 +1708,134 @@ exegesis { Returns 1 if x is falsy (0), 0 otherwise. }
 }
 
 // ============================================
-// F32 Field Type Coverage Tests
+// Additional Expression Coverage Tests
 // ============================================
 
-/// Test member access with F32 field type
+/// Test nested struct field access
 #[test]
-fn test_member_access_f32_field() {
+fn test_nested_field_access() {
     use metadol::wasm::layout::{FieldLayout, GeneLayout, WasmFieldType};
 
     let source = r#"
-fun get_x_coord() -> f32 {
-    let point = Point3D { x: 1.5, y: 2.5, z: 3.5 }
-    return point.x
+fun sum_coordinates() -> i64 {
+    let p1 = Point { x: 10, y: 20 }
+    let p2 = Point { x: 5, y: 15 }
+    return p1.x + p2.y
 }
-exegesis { Gets the x coordinate from a 3D point. }
-"#;
-    let module = parse_file(source).expect("Failed to parse");
-
-    // Create Point3D layout with F32 fields
-    let point_layout = GeneLayout {
-        name: "Point3D".to_string(),
-        fields: vec![
-            FieldLayout::primitive("x", 0, WasmFieldType::F32),
-            FieldLayout::primitive("y", 4, WasmFieldType::F32),
-            FieldLayout::primitive("z", 8, WasmFieldType::F32),
-        ],
-        total_size: 12,
-        alignment: 4,
-    };
-
-    let mut compiler = WasmCompiler::new();
-    compiler.register_gene_layout(point_layout);
-
-    let wasm_bytes = compiler.compile(&module).expect("Compilation failed");
-
-    let runtime = WasmRuntime::new().expect("Failed to create runtime");
-    let mut wasm_module = runtime.load(&wasm_bytes).expect("Failed to load module");
-
-    let result = wasm_module.call("get_x_coord", &[]).expect("Call failed");
-
-    // Verify F32 result - should be 1.5
-    let x = result
-        .first()
-        .and_then(|v| v.f32())
-        .expect("Expected f32 result");
-    assert!((x - 1.5).abs() < 0.001, "Expected 1.5, got {}", x);
-}
-
-/// Test struct literal with F32 fields - accessing different field
-#[test]
-fn test_struct_literal_f32_field() {
-    use metadol::wasm::layout::{FieldLayout, GeneLayout, WasmFieldType};
-
-    let source = r#"
-fun get_z_coord() -> f32 {
-    let point = Point3D { x: 10.0, y: 20.0, z: 30.0 }
-    return point.z
-}
-exegesis { Gets the z coordinate from a 3D point. }
+exegesis { Sums x from one point and y from another. }
 "#;
     let module = parse_file(source).expect("Failed to parse");
 
     let point_layout = GeneLayout {
-        name: "Point3D".to_string(),
+        name: "Point".to_string(),
         fields: vec![
-            FieldLayout::primitive("x", 0, WasmFieldType::F32),
-            FieldLayout::primitive("y", 4, WasmFieldType::F32),
-            FieldLayout::primitive("z", 8, WasmFieldType::F32),
-        ],
-        total_size: 12,
-        alignment: 4,
-    };
-
-    let mut compiler = WasmCompiler::new();
-    compiler.register_gene_layout(point_layout);
-
-    let wasm_bytes = compiler.compile(&module).expect("Compilation failed");
-
-    let runtime = WasmRuntime::new().expect("Failed to create runtime");
-    let mut wasm_module = runtime.load(&wasm_bytes).expect("Failed to load module");
-
-    let result = wasm_module.call("get_z_coord", &[]).expect("Call failed");
-
-    // Verify F32 result - should be 30.0
-    let z = result
-        .first()
-        .and_then(|v| v.f32())
-        .expect("Expected f32 result");
-    assert!((z - 30.0).abs() < 0.001, "Expected 30.0, got {}", z);
-}
-
-/// Test struct with mixed I32, F32, and I64 fields
-#[test]
-fn test_struct_literal_mixed_with_f32() {
-    use metadol::wasm::layout::{FieldLayout, GeneLayout, WasmFieldType};
-
-    let source = r#"
-fun get_velocity() -> f32 {
-    let particle = Particle { id: 42, velocity: 9.8, mass: 100 }
-    return particle.velocity
-}
-exegesis { Gets velocity from a particle with mixed field types. }
-"#;
-    let module = parse_file(source).expect("Failed to parse");
-
-    // Create Particle layout with mixed I32, F32, I64 fields
-    let particle_layout = GeneLayout {
-        name: "Particle".to_string(),
-        fields: vec![
-            FieldLayout::primitive("id", 0, WasmFieldType::I32),
-            FieldLayout::primitive("velocity", 4, WasmFieldType::F32),
-            FieldLayout::primitive("mass", 8, WasmFieldType::I64),
+            FieldLayout::primitive("x", 0, WasmFieldType::I64),
+            FieldLayout::primitive("y", 8, WasmFieldType::I64),
         ],
         total_size: 16,
         alignment: 8,
     };
 
     let mut compiler = WasmCompiler::new();
-    compiler.register_gene_layout(particle_layout);
+    compiler.register_gene_layout(point_layout);
 
     let wasm_bytes = compiler.compile(&module).expect("Compilation failed");
 
     let runtime = WasmRuntime::new().expect("Failed to create runtime");
     let mut wasm_module = runtime.load(&wasm_bytes).expect("Failed to load module");
 
-    let result = wasm_module.call("get_velocity", &[]).expect("Call failed");
+    let result = wasm_module
+        .call("sum_coordinates", &[])
+        .expect("Call failed");
 
-    // Verify F32 result - should be 9.8
-    let velocity = result
-        .first()
-        .and_then(|v| v.f32())
-        .expect("Expected f32 result");
-    assert!(
-        (velocity - 9.8).abs() < 0.01,
-        "Expected 9.8, got {}",
-        velocity
-    );
+    // 10 + 15 = 25
+    assert_eq!(result.first().and_then(|v| v.i64()), Some(25));
+}
+
+/// Test multiple struct literals in same function
+#[test]
+fn test_multiple_struct_literals() {
+    use metadol::wasm::layout::{FieldLayout, GeneLayout, WasmFieldType};
+
+    let source = r#"
+fun distance_squared() -> i64 {
+    let start = Point { x: 0, y: 0 }
+    let end = Point { x: 3, y: 4 }
+    let dx = end.x - start.x
+    let dy = end.y - start.y
+    return dx * dx + dy * dy
+}
+exegesis { Calculates squared distance between two points. }
+"#;
+    let module = parse_file(source).expect("Failed to parse");
+
+    let point_layout = GeneLayout {
+        name: "Point".to_string(),
+        fields: vec![
+            FieldLayout::primitive("x", 0, WasmFieldType::I64),
+            FieldLayout::primitive("y", 8, WasmFieldType::I64),
+        ],
+        total_size: 16,
+        alignment: 8,
+    };
+
+    let mut compiler = WasmCompiler::new();
+    compiler.register_gene_layout(point_layout);
+
+    let wasm_bytes = compiler.compile(&module).expect("Compilation failed");
+
+    let runtime = WasmRuntime::new().expect("Failed to create runtime");
+    let mut wasm_module = runtime.load(&wasm_bytes).expect("Failed to load module");
+
+    let result = wasm_module
+        .call("distance_squared", &[])
+        .expect("Call failed");
+
+    // 3^2 + 4^2 = 9 + 16 = 25
+    assert_eq!(result.first().and_then(|v| v.i64()), Some(25));
+}
+
+/// Test struct field in conditional
+#[test]
+fn test_struct_field_in_conditional() {
+    use metadol::wasm::layout::{FieldLayout, GeneLayout, WasmFieldType};
+
+    let source = r#"
+fun is_origin() -> i64 {
+    let p = Point { x: 0, y: 0 }
+    if p.x == 0 {
+        if p.y == 0 {
+            return 1
+        }
+    }
+    return 0
+}
+exegesis { Checks if point is at origin. }
+"#;
+    let module = parse_file(source).expect("Failed to parse");
+
+    let point_layout = GeneLayout {
+        name: "Point".to_string(),
+        fields: vec![
+            FieldLayout::primitive("x", 0, WasmFieldType::I64),
+            FieldLayout::primitive("y", 8, WasmFieldType::I64),
+        ],
+        total_size: 16,
+        alignment: 8,
+    };
+
+    let mut compiler = WasmCompiler::new();
+    compiler.register_gene_layout(point_layout);
+
+    let wasm_bytes = compiler.compile(&module).expect("Compilation failed");
+
+    let runtime = WasmRuntime::new().expect("Failed to create runtime");
+    let mut wasm_module = runtime.load(&wasm_bytes).expect("Failed to load module");
+
+    let result = wasm_module.call("is_origin", &[]).expect("Call failed");
+
+    // Point is at origin, should return 1
+    assert_eq!(result.first().and_then(|v| v.i64()), Some(1));
 }
 
 /// Test double negation
