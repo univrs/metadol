@@ -16,6 +16,12 @@ exclude = [
     ".github/",
     "docs/tutorials/",
     "examples/*.test",
+    "packages/",
+    "compiler-progress/",
+    "effect-v2-results/",
+    "identity-progress/",
+    "vm-progress/",
+    "stdlib/",
 ]
 
 [lib]
